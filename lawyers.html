@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LayerMarket - Your Visual Layer Marketplace</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter (for modern UI) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for better aesthetics, if needed */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gray-50 text-gray-900 flex flex-col">
+
+    <!-- Header/Navigation -->
+    <nav class="bg-gray-900 text-white p-4 shadow-md sticky top-0 z-10">
+        <div class="container mx-auto flex justify-between items-center max-w-7xl">
+            <div class="text-2xl font-bold text-blue-300 cursor-pointer" id="logo">
+                LayerMarket
+            </div>
+            <div class="flex space-x-6">
+                <button id="nav-home" class="hover:text-blue-300 transition duration-200">
+                    Home
+                </button>
+                <button id="nav-layers" class="hover:text-blue-300 transition duration-200">
+                    Layers
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main id="app-content" class="flex-grow py-8"></main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-white text-center p-6 mt-12">
+        <p class="text-gray-400">&copy; <span id="current-year"></span> LayerMarket. All rights reserved.</p>
+        <p class="text-gray-400 text-sm mt-2">Designed with ❤️ using Vanilla JS, HTML, and Tailwind CSS</p>
+    </footer>
+
+    <script>
+        // Dummy Data for Layers
+        const layersData = [
+            {
+                id: '1',
+                name: 'Ocean Waves',
+                description: 'A beautiful, calm layer depicting gentle ocean waves perfect for background visuals or serene compositions. High resolution and loopable.',
+                category: 'Nature',
+                rating: 4.8,
+                price: 19.99,
+                imageUrl: 'https://placehold.co/400x300/F0F8FF/000000?text=Ocean+Waves',
+                details: 'This layer features realistic ocean wave movements, with subtle light reflections and a soothing blue palette. Optimized for various screen sizes.'
+            },
+            {
+                id: '2',
+                name: 'City Night Skyline',
+                description: 'Dynamic layer of a bustling city at night, with twinkling lights and subtle traffic movement. Ideal for urban-themed projects.',
+                category: 'Urban',
+                rating: 4.5,
+                price: 24.99,
+                imageUrl: 'https://placehold.co/400x300/000000/FFFFFF?text=City+Night',
+                details: 'Capture the essence of city life after dark. This layer includes animated building lights, distant car trails, and a deep, atmospheric color scheme.'
+            },
+            {
+                id: '3',
+                name: 'Abstract Energy Flow',
+                description: 'Vibrant and energetic abstract layer with swirling colors and light trails. Great for motion graphics or futuristic designs.',
+                category: 'Abstract',
+                rating: 4.7,
+                price: 29.99,
+                imageUrl: 'https://placehold.co/400x300/FF00FF/000000?text=Energy+Flow',
+                details: 'A mesmerizing abstract animation that evokes energy and movement. Perfect for intros, transitions, or as a dynamic background.'
+            },
+            {
+                id: '4',
+                name: 'Forest Canopy Sunlight',
+                description: 'A serene layer showing sunlight dappling through a dense forest canopy. Creates a peaceful and natural atmosphere.',
+                category: 'Nature',
+                rating: 4.9,
+                price: 22.50,
+                imageUrl: 'https://placehold.co/400x300/A0B080/000000?text=Forest+Canopy',
+                details: 'Experience the calm of a sunlit forest. This layer offers subtle wind-blown leaves and realistic light rays filtering through the trees.'
+            },
+            {
+                id: '5',
+                name: 'Retro Glitch Effect',
+                description: 'Classic retro glitch effect with scan lines and color distortion. Perfect for vintage tech or cyberpunk aesthetics.',
+                category: 'Effect',
+                rating: 4.2,
+                price: 15.00,
+                imageUrl: 'https://placehold.co/400x300/808080/FFFFFF?text=Retro+Glitch',
+                details: 'Add an authentic retro feel with this versatile glitch effect. Adjustable parameters for intensity and color shift.'
+            },
+            {
+                id: '6',
+                name: 'Cosmic Dust Particles',
+                description: 'Subtle, slow-moving cosmic dust particles floating in space. Ideal for sci-fi scenes or ethereal backgrounds.',
+                category: 'Space',
+                rating: 4.6,
+                price: 18.75,
+                imageUrl: 'https://placehold.co/400x300/404060/FFFFFF?text=Cosmic+Dust',
+                details: 'A delicate and realistic depiction of interstellar dust. Adds depth and realism to space environments without being distracting.'
+            },
+            {
+                id: '7',
+                name: 'Water Ripple Surface',
+                description: 'Gentle water ripples spreading across a surface. Versatile for calm liquid effects or reflections.',
+                category: 'Nature',
+                rating: 4.3,
+                price: 17.00,
+                imageUrl: 'https://placehold.co/400x300/60A0C0/000000?text=Water+Ripple',
+                details: 'Simulate realistic water surface effects with this adaptable layer. Perfect for ponds, lakes, or fantasy liquid animations.'
+            },
+            {
+                id: '8',
+                name: 'Neon Light Trails',
+                description: 'Fast-paced neon light trails creating dynamic streaks of color. Excellent for abstract motion or futuristic designs.',
+                category: 'Abstract',
+                rating: 4.7,
+                price: 26.00,
+                imageUrl: 'https://placehold.co/400x300/EE5090/000000?text=Neon+Trails',
+                details: 'Electrify your visuals with these glowing neon light streaks. Customizable colors and speeds for various projects.'
+            }
+        ];
+
+        // Global state for current page and selected layer
+        let currentPage = 'home'; // 'home', 'layers', 'layerDetail'
+        let selectedLayerId = null;
+        let searchTerm = '';
+        let selectedCategory = 'All';
+
+        // Get the main content area element
+        const appContent = document.getElementById('app-content');
+
+        /**
+         * Navigates to a specified page and updates the URL hash.
+         * @param {string} page - The target page ('home', 'layers', 'layerDetail').
+         * @param {string|null} id - The ID of the layer if navigating to 'layerDetail'.
+         */
+        function navigate(page, id = null) {
+            currentPage = page;
+            selectedLayerId = id;
+            // Update URL hash to allow for basic back/forward navigation in browser history
+            if (page === 'layerDetail' && id) {
+                window.location.hash = `#${page}/${id}`;
+            } else {
+                window.location.hash = `#${page}`;
+            }
+            renderApp(); // Re-render the application
+            window.scrollTo(0, 0); // Scroll to top on page change
+        }
+
+        /**
+         * Creates an HTML string for a single layer card.
+         * @param {object} layer - The layer data object.
+         * @returns {string} HTML string for the layer card.
+         */
+        function createLayerCardHtml(layer) {
+            return `
+                <div class="bg-white rounded-xl shadow-lg p-4 cursor-pointer hover:shadow-xl transition-shadow duration-300 transform hover:-translate-y-1 layer-card" data-layer-id="${layer.id}">
+                    <img
+                        src="${layer.imageUrl}"
+                        alt="${layer.name}"
+                        class="w-full h-48 object-cover rounded-md mb-4"
+                        onerror="this.onerror=null; this.src='https://placehold.co/400x300/CCCCCC/000000?text=Image+Error';"
+                    />
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">${layer.name}</h3>
+                    <p class="text-sm text-gray-600 mb-2 line-clamp-2">${layer.description}</p>
+                    <div class="flex justify-between items-center text-sm text-gray-700">
+                        <span class="font-medium">Rating: ${layer.rating} ⭐</span>
+                        <span class="font-bold text-green-600">$${layer.price.toFixed(2)}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * Renders the Home Page.
+         */
+        function renderHomePage() {
+            // Get top-rated layers (e.g., rating 4.5 or higher)
+            const topRatedLayers = layersData
+                .filter(layer => layer.rating >= 4.5)
+                .sort((a, b) => b.rating - a.rating)
+                .slice(0, 4); // Display top 4
+
+            appContent.innerHTML = `
+                <div class="container mx-auto p-6 max-w-4xl">
+                    <!-- Hero Section -->
+                    <section class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl p-8 mb-12 text-center shadow-lg">
+                        <h1 class="text-4xl md:text-5xl font-extrabold mb-4">Discover Your Next Visual Layer</h1>
+                        <p class="text-lg md:text-xl mb-6 opacity-90">
+                            Explore a diverse marketplace of high-quality visual layers for all your creative projects.
+                        </p>
+                        <button id="browse-all-layers-hero"
+                            class="bg-white text-blue-700 font-bold py-3 px-8 rounded-full shadow-md hover:bg-gray-100 transition duration-300 ease-in-out transform hover:scale-105">
+                            Browse All Layers
+                        </button>
+                    </section>
+
+                    <!-- About Section -->
+                    <section class="mb-12">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">About This Marketplace</h2>
+                        <p class="text-lg text-gray-700 leading-relaxed text-center max-w-2xl mx-auto">
+                            Our platform offers a curated collection of visual layers designed to enhance your videos, graphics, and interactive experiences. From stunning natural phenomena to abstract animations and practical effects, find the perfect layer to bring your vision to life. We pride ourselves on quality, variety, and ease of use.
+                        </p>
+                    </section>
+
+                    <!-- Top Rated Layers Section -->
+                    <section>
+                        <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">Top Rated Layers</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8" id="top-rated-layers-grid">
+                            <!-- Top rated layer cards will be injected here -->
+                        </div>
+                        <div class="text-center mt-10">
+                            <button id="view-all-layers-home"
+                                class="bg-blue-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105">
+                                View All Layers
+                            </button>
+                        </div>
+                    </section>
+                </div>
+            `;
+
+            // Populate top-rated layers grid
+            const topRatedGrid = document.getElementById('top-rated-layers-grid');
+            topRatedLayers.forEach(layer => {
+                topRatedGrid.innerHTML += createLayerCardHtml(layer);
+            });
+
+            // Attach event listeners for buttons and layer cards
+            document.getElementById('browse-all-layers-hero').addEventListener('click', () => navigate('layers'));
+            document.getElementById('view-all-layers-home').addEventListener('click', () => navigate('layers'));
+            document.querySelectorAll('.layer-card').forEach(card => {
+                card.addEventListener('click', (event) => {
+                    const layerId = event.currentTarget.dataset.layerId;
+                    navigate('layerDetail', layerId);
+                });
+            });
+        }
+
+        /**
+         * Renders the Layers Page with search and filter functionality.
+         */
+        function renderLayersPage() {
+            const categories = ['All', ...new Set(layersData.map(layer => layer.category))];
+
+            // Filtered layers based on current search term and category
+            const filteredLayers = layersData.filter(layer => {
+                const matchesSearch = layer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                      layer.description.toLowerCase().includes(searchTerm.toLowerCase());
+                const matchesCategory = selectedCategory === 'All' || layer.category === selectedCategory;
+                return matchesSearch && matchesCategory;
+            });
+
+            appContent.innerHTML = `
+                <div class="container mx-auto p-6 max-w-6xl">
+                    <h1 class="text-4xl font-extrabold text-gray-800 mb-8 text-center">Explore All Layers</h1>
+
+                    <!-- Filter and Search Section -->
+                    <div class="flex flex-col md:flex-row justify-center items-center gap-4 mb-8 p-4 bg-gray-100 rounded-xl shadow-md">
+                        <input
+                            type="text"
+                            id="search-input"
+                            placeholder="Search layers by name or description..."
+                            class="w-full md:flex-grow p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+                            value="${searchTerm}"
+                        />
+                        <select
+                            id="category-select"
+                            class="w-full md:w-auto p-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200"
+                        >
+                            ${categories.map(category => `<option value="${category}" ${selectedCategory === category ? 'selected' : ''}>${category}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <!-- Layers Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8" id="layers-grid">
+                        ${filteredLayers.length > 0 ?
+                            filteredLayers.map(layer => createLayerCardHtml(layer)).join('') :
+                            '<p class="col-span-full text-center text-gray-600 text-xl py-10">No layers found matching your criteria.</p>'
+                        }
+                    </div>
+
+                    <!-- Back to Home Button -->
+                    <div class="text-center mt-10">
+                        <button id="back-to-home-layers"
+                            class="bg-gray-700 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-gray-800 transition duration-300 ease-in-out transform hover:scale-105">
+                            Back to Home
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Attach event listeners for search and filter
+            const searchInput = document.getElementById('search-input');
+            const categorySelect = document.getElementById('category-select');
+
+            searchInput.addEventListener('input', (event) => {
+                searchTerm = event.target.value;
+                renderLayersPage(); // Re-render the layers page with new filters
+            });
+
+            categorySelect.addEventListener('change', (event) => {
+                selectedCategory = event.target.value;
+                renderLayersPage(); // Re-render the layers page with new filters
+            });
+
+            // Attach event listeners for layer cards
+            document.querySelectorAll('.layer-card').forEach(card => {
+                card.addEventListener('click', (event) => {
+                    const layerId = event.currentTarget.dataset.layerId;
+                    navigate('layerDetail', layerId);
+                });
+            });
+
+            document.getElementById('back-to-home-layers').addEventListener('click', () => navigate('home'));
+        }
+
+        /**
+         * Renders the Layer Detail Page.
+         * @param {string} layerId - The ID of the layer to display.
+         */
+        function renderLayerDetailPage(layerId) {
+            const layer = layersData.find(l => l.id === layerId);
+
+            if (!layer) {
+                appContent.innerHTML = `
+                    <div class="container mx-auto p-6 text-center max-w-xl">
+                        <h1 class="text-3xl font-bold text-red-600 mb-4">Layer Not Found</h1>
+                        <p class="text-lg text-gray-700 mb-6">The layer you are looking for does not exist.</p>
+                        <button id="browse-all-layers-not-found"
+                            class="bg-blue-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105">
+                            Browse All Layers
+                        </button>
+                    </div>
+                `;
+                document.getElementById('browse-all-layers-not-found').addEventListener('click', () => navigate('layers'));
+                return;
+            }
+
+            appContent.innerHTML = `
+                <div class="container mx-auto p-6 max-w-4xl">
+                    <div class="bg-white rounded-xl shadow-lg p-6 md:p-8">
+                        <img
+                            src="${layer.imageUrl}"
+                            alt="${layer.name}"
+                            class="w-full h-72 md:h-96 object-cover rounded-lg mb-8 shadow-md"
+                            onerror="this.onerror=null; this.src='https://placehold.co/800x600/CCCCCC/000000?text=Image+Error';"
+                        />
+                        <h1 class="text-4xl md:text-5xl font-extrabold text-gray-800 mb-4">${layer.name}</h1>
+                        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b pb-4">
+                            <p class="text-xl text-gray-700 mb-2 md:mb-0">
+                                <span class="font-semibold">Category:</span> ${layer.category}
+                            </p>
+                            <div class="flex items-center text-xl text-gray-700">
+                                <span class="font-semibold mr-2">Rating: ${layer.rating}</span>
+                                <span class="text-yellow-500">
+                                    ${'⭐'.repeat(Math.floor(layer.rating))}
+                                    ${layer.rating % 1 !== 0 ? 'half-star' : ''}
+                                </span>
+                            </div>
+                        </div>
+
+                        <p class="text-lg text-gray-800 mb-6 leading-relaxed">${layer.description}</p>
+                        <p class="text-md text-gray-700 mb-8 leading-relaxed italic">${layer.details}</p>
+
+                        <div class="flex justify-between items-center mb-8 border-t pt-4">
+                            <span class="text-3xl font-bold text-green-600">$${layer.price.toFixed(2)}</span>
+                            <button class="bg-blue-600 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105">
+                                Add to Cart
+                            </button>
+                        </div>
+
+                        <!-- Navigation Buttons -->
+                        <div class="flex justify-center gap-4">
+                            <button id="back-to-layers-detail"
+                                class="bg-gray-700 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-gray-800 transition duration-300 ease-in-out transform hover:scale-105">
+                                Back to Layers
+                            </button>
+                            <button id="back-to-home-detail"
+                                class="bg-gray-700 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-gray-800 transition duration-300 ease-in-out transform hover:scale-105">
+                                Back to Home
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('back-to-layers-detail').addEventListener('click', () => navigate('layers'));
+            document.getElementById('back-to-home-detail').addEventListener('click', () => navigate('home'));
+        }
+
+        /**
+         * Main function to render the application based on the current page state.
+         */
+        function renderApp() {
+            // Remove active class from nav buttons
+            document.querySelectorAll('#nav-home, #nav-layers').forEach(btn => {
+                btn.classList.remove('text-blue-300', 'font-semibold');
+            });
+
+            // Render the appropriate page
+            switch (currentPage) {
+                case 'home':
+                    renderHomePage();
+                    document.getElementById('nav-home').classList.add('text-blue-300', 'font-semibold');
+                    break;
+                case 'layers':
+                    renderLayersPage();
+                    document.getElementById('nav-layers').classList.add('text-blue-300', 'font-semibold');
+                    break;
+                case 'layerDetail':
+                    renderLayerDetailPage(selectedLayerId);
+                    document.getElementById('nav-layers').classList.add('text-blue-300', 'font-semibold'); // Layers is highlighted when viewing detail
+                    break;
+                default:
+                    renderHomePage();
+                    document.getElementById('nav-home').classList.add('text-blue-300', 'font-semibold');
+                    break;
+            }
+        }
+
+        // Initialize the app when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set current year in footer
+            document.getElementById('current-year').textContent = new Date().getFullYear();
+
+            // Attach global navigation event listeners
+            document.getElementById('logo').addEventListener('click', () => navigate('home'));
+            document.getElementById('nav-home').addEventListener('click', () => navigate('home'));
+            document.getElementById('nav-layers').addEventListener('click', () => navigate('layers'));
+
+            // Handle initial page load based on URL hash
+            const hash = window.location.hash.substring(1); // Remove '#'
+            if (hash) {
+                const parts = hash.split('/');
+                if (parts[0] === 'layerDetail' && parts[1]) {
+                    navigate('layerDetail', parts[1]);
+                } else if (parts[0] === 'layers') {
+                    navigate('layers');
+                } else {
+                    navigate('home'); // Default to home if hash is invalid
+                }
+            } else {
+                navigate('home'); // Default to home if no hash
+            }
+
+            // Listen for hash changes (e.g., browser back/forward buttons)
+            window.addEventListener('hashchange', () => {
+                const newHash = window.location.hash.substring(1);
+                const parts = newHash.split('/');
+                if (parts[0] === 'layerDetail' && parts[1]) {
+                    if (currentPage !== 'layerDetail' || selectedLayerId !== parts[1]) { // Prevent re-rendering if already on the page
+                        navigate('layerDetail', parts[1]);
+                    }
+                } else if (parts[0] === 'layers') {
+                    if (currentPage !== 'layers') {
+                        navigate('layers');
+                    }
+                } else {
+                    if (currentPage !== 'home') {
+                        navigate('home');
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+
