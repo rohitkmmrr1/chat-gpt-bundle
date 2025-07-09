@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Android Log Viewer</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+            color: #374151; /* Dark gray text */
+        }
+        .log-level-info { background-color: #e0f2fe; color: #0284c7; } /* Light blue for INFO */
+        .log-level-debug { background-color: #eef2ff; color: #4f46e5; } /* Light indigo for DEBUG */
+        .log-level-warn { background-color: #fffbeb; color: #f59e0b; } /* Light yellow for WARN */
+        .log-level-error { background-color: #fee2e2; color: #dc2626; } /* Light red for ERROR */
+        .log-level-fatal { background-color: #fecaca; color: #b91c1c; } /* Red for FATAL */
+        .log-level-default { background-color: #f9fafb; color: #374151; } /* Default for unknown */
+        .table-row-even { background-color: #f9fafb; }
+        .table-row-odd { background-color: #f3f4f6; }
+    </style>
+</head>
+<body class="p-4 sm:p-6 md:p-8">
+    <div class="max-w-7xl mx-auto bg-white rounded-lg shadow-xl p-6 sm:p-8">
+        <h1 class="text-3xl font-extrabold text-gray-900 mb-6 text-center">Android Log Viewer</h1>
+
+        <!-- File Input Section -->
+        <div class="bg-gray-50 p-6 rounded-lg mb-8 shadow-inner flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 sm:space-x-4">
+            <label for="json-file-input" class="block text-lg font-medium text-gray-700">Upload Log JSON File:</label>
+            <input type="file" id="json-file-input" accept=".json" class="flex-grow border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+            <span id="file-error-message" class="text-red-600 text-sm hidden">Invalid JSON file. Please upload a valid log file.</span>
+        </div>
+
+        <!-- Metadata Section -->
+        <div class="bg-gray-50 p-6 rounded-lg mb-8 shadow-inner">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Metadata</h2>
+            <div id="metadata-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-gray-700">
+                <!-- Metadata will be injected here by JavaScript -->
+                <p class="col-span-full text-center text-gray-500" id="metadata-placeholder">Upload a JSON file to view metadata.</p>
+            </div>
+            <div class="mt-6">
+                <button id="copy-json-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out">
+                    Copy Raw JSON
+                </button>
+                <span id="copy-message" class="ml-4 text-green-600 font-medium hidden">Copied!</span>
+            </div>
+        </div>
+
+        <!-- Log Messages Section -->
+        <div class="bg-gray-50 p-6 rounded-lg shadow-inner">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Log Messages</h2>
+            <div class="mb-4 flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                <input type="text" id="log-search-input" placeholder="Search logs..."
+                       class="flex-grow p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm w-full sm:w-auto">
+                <button id="clear-search-btn" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out w-full sm:w-auto">
+                    Clear Search
+                </button>
+            </div>
+
+            <div class="overflow-x-auto rounded-lg shadow">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-200">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider rounded-tl-lg">Level</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">PID</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">TID</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">App ID</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Process</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tag</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Timestamp</th>
+                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider rounded-tr-lg">Message</th>
+                        </tr>
+                    </thead>
+                    <tbody id="log-messages-body" class="bg-white divide-y divide-gray-200">
+                        <!-- Log messages will be injected here by JavaScript -->
+                        <tr><td colspan="8" class="text-center text-gray-500 py-4" id="log-messages-placeholder">Upload a JSON file to view log messages.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <p id="no-results-message" class="text-center text-gray-500 mt-4 hidden">No log messages match your search.</p>
+        </div>
+    </div>
+
+    <script>
+        let currentLogData = null; // Variable to hold the parsed log data
+
+        const jsonFileInput = document.getElementById('json-file-input');
+        const metadataContainer = document.getElementById('metadata-container');
+        const metadataPlaceholder = document.getElementById('metadata-placeholder');
+        const logMessagesBody = document.getElementById('log-messages-body');
+        const logMessagesPlaceholder = document.getElementById('log-messages-placeholder');
+        const logSearchInput = document.getElementById('log-search-input');
+        const clearSearchBtn = document.getElementById('clear-search-btn');
+        const noResultsMessage = document.getElementById('no-results-message');
+        const copyJsonBtn = document.getElementById('copy-json-btn');
+        const copyMessage = document.getElementById('copy-message');
+        const fileErrorMessage = document.getElementById('file-error-message');
+
+        // Function to format timestamp
+        function formatTimestamp(seconds, nanos) {
+            if (!seconds) return 'N/A';
+            const date = new Date(seconds * 1000 + nanos / 1000000);
+            return date.toLocaleString(); // Adjust as needed for specific format
+        }
+
+        // Function to render metadata
+        function renderMetadata(metadata) {
+            metadataContainer.innerHTML = ''; // Clear previous content
+            if (!metadata) {
+                metadataPlaceholder.classList.remove('hidden');
+                metadataContainer.appendChild(metadataPlaceholder);
+                return;
+            }
+            metadataPlaceholder.classList.add('hidden');
+
+            // Device Info
+            const device = metadata.device;
+            for (const key in device) {
+                if (Object.hasOwnProperty.call(device, key)) {
+                    const value = device[key];
+                    const div = document.createElement('div');
+                    div.className = 'flex flex-col';
+                    div.innerHTML = `<span class="font-semibold text-gray-900">${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}:</span> <span>${value}</span>`;
+                    metadataContainer.appendChild(div);
+                }
+            }
+
+            // Other Metadata
+            if (metadata.filter) {
+                const filterDiv = document.createElement('div');
+                filterDiv.className = 'flex flex-col';
+                filterDiv.innerHTML = `<span class="font-semibold text-gray-900">Filter:</span> <span>${metadata.filter}</span>`;
+                metadataContainer.appendChild(filterDiv);
+            }
+
+
+            if (metadata.projectApplicationIds && metadata.projectApplicationIds.length > 0) {
+                const appIdsDiv = document.createElement('div');
+                appIdsDiv.className = 'flex flex-col col-span-1 md:col-span-2 lg:col-span-3';
+                appIdsDiv.innerHTML = `<span class="font-semibold text-gray-900">Project Application IDs:</span> <span>${metadata.projectApplicationIds.join(', ')}</span>`;
+                metadataContainer.appendChild(appIdsDiv);
+            }
+        }
+
+        // Function to render log messages
+        function renderLogMessages(messages, searchTerm = '') {
+            logMessagesBody.innerHTML = ''; // Clear previous content
+            if (!messages || messages.length === 0) {
+                logMessagesPlaceholder.classList.remove('hidden');
+                logMessagesBody.appendChild(document.createElement('tr').appendChild(logMessagesPlaceholder));
+                return;
+            }
+            logMessagesPlaceholder.classList.add('hidden');
+
+            let rowCount = 0;
+            const filteredMessages = messages.filter(log => {
+                const searchLower = searchTerm.toLowerCase();
+                return JSON.stringify(log).toLowerCase().includes(searchLower);
+            });
+
+            if (filteredMessages.length === 0) {
+                noResultsMessage.classList.remove('hidden');
+                return;
+            } else {
+                noResultsMessage.classList.add('hidden');
+            }
+
+            filteredMessages.forEach((log) => {
+                const row = logMessagesBody.insertRow();
+                const logLevel = log.header.logLevel ? log.header.logLevel.toLowerCase() : 'default';
+                let levelClass = '';
+
+                // Apply specific classes based on log level
+                switch (logLevel) {
+                    case 'info':
+                        levelClass = 'log-level-info';
+                        break;
+                    case 'debug':
+                        levelClass = 'log-level-debug';
+                        break;
+                    case 'warn':
+                        levelClass = 'log-level-warn';
+                        break;
+                    case 'error':
+                        levelClass = 'log-level-error';
+                        break;
+                    case 'fatal':
+                        levelClass = 'log-level-fatal';
+                        break;
+                    default:
+                        levelClass = 'log-level-default';
+                        break;
+                }
+
+                row.className = `text-sm ${levelClass} ${rowCount % 2 === 0 ? 'table-row-even' : 'table-row-odd'}`;
+                rowCount++; // Increment row count for alternating colors
+
+                row.insertCell().textContent = log.header.logLevel || 'N/A';
+                row.insertCell().textContent = log.header.pid || 'N/A';
+                row.insertCell().textContent = log.header.tid || 'N/A';
+                row.insertCell().textContent = log.header.applicationId || 'N/A';
+                row.insertCell().textContent = log.header.processName || 'N/A';
+                row.insertCell().textContent = log.header.tag || 'N/A';
+                row.insertCell().textContent = formatTimestamp(log.header.timestamp?.seconds, log.header.timestamp?.nanos);
+                row.insertCell().textContent = log.message || 'N/A';
+
+                // Add tooltips for full content on hover if text is truncated
+                row.querySelectorAll('td').forEach(cell => {
+                    cell.classList.add('px-4', 'py-2', 'whitespace-nowrap', 'overflow-hidden', 'text-ellipsis');
+                    cell.title = cell.textContent; // Set tooltip to full text
+                });
+            });
+        }
+
+        // Handle file input change
+        jsonFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        currentLogData = JSON.parse(e.target.result);
+                        fileErrorMessage.classList.add('hidden');
+                        renderMetadata(currentLogData.metadata);
+                        renderLogMessages(currentLogData.logcatMessages);
+                        logSearchInput.value = ''; // Clear search on new file load
+                    } catch (error) {
+                        console.error("Error parsing JSON:", error);
+                        fileErrorMessage.classList.remove('hidden');
+                        currentLogData = null; // Clear data if parsing fails
+                        renderMetadata(null); // Clear metadata display
+                        renderLogMessages(null); // Clear log messages display
+                    }
+                };
+                reader.readAsText(file);
+            } else {
+                currentLogData = null;
+                renderMetadata(null);
+                renderLogMessages(null);
+                fileErrorMessage.classList.add('hidden');
+            }
+        });
+
+        // Search functionality
+        logSearchInput.addEventListener('input', (event) => {
+            if (currentLogData) {
+                renderLogMessages(currentLogData.logcatMessages, event.target.value);
+            }
+        });
+
+        // Clear search functionality
+        clearSearchBtn.addEventListener('click', () => {
+            logSearchInput.value = '';
+            if (currentLogData) {
+                renderLogMessages(currentLogData.logcatMessages);
+            }
+        });
+
+        // Copy raw JSON to clipboard
+        copyJsonBtn.addEventListener('click', () => {
+            if (currentLogData) {
+                const jsonString = JSON.stringify(currentLogData, null, 2); // Pretty print JSON
+                const tempTextArea = document.createElement('textarea');
+                tempTextArea.value = jsonString;
+                document.body.appendChild(tempTextArea);
+                tempTextArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempTextArea);
+
+                copyMessage.classList.remove('hidden');
+                setTimeout(() => {
+                    copyMessage.classList.add('hidden');
+                }, 2000); // Hide message after 2 seconds
+            }
+        });
+
+        // Initial render with empty state
+        document.addEventListener('DOMContentLoaded', () => {
+            renderMetadata(null);
+            renderLogMessages(null);
+        });
+    </script>
+</body>
+</html>
