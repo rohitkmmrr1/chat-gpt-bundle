@@ -132,10 +132,31 @@
         };
 
         // Initial state for column visibility (all true by default)
-        let visibleColumns = Object.keys(columnMap).reduce((acc, key) => {
+        // Load from localStorage or use default
+        let visibleColumns = loadFromLocalStorage('visibleColumns', Object.keys(columnMap).reduce((acc, key) => {
             acc[key] = true;
             return acc;
-        }, {});
+        }, {}));
+
+        // Helper function to load from localStorage
+        function loadFromLocalStorage(key, defaultValue) {
+            try {
+                const storedValue = localStorage.getItem(key);
+                return storedValue ? JSON.parse(storedValue) : defaultValue;
+            } catch (e) {
+                console.error(`Error loading from localStorage for key "${key}":`, e);
+                return defaultValue;
+            }
+        }
+
+        // Helper function to save to localStorage
+        function saveToLocalStorage(key, value) {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+            } catch (e) {
+                console.error(`Error saving to localStorage for key "${key}":`, e);
+            }
+        }
 
         // Function to format timestamp
         function formatTimestamp(seconds, nanos) {
@@ -224,6 +245,7 @@
                 // Add event listener for checkbox changes
                 div.querySelector(`#col-${key}`).addEventListener('change', (event) => {
                     visibleColumns[key] = event.target.checked;
+                    saveToLocalStorage('visibleColumns', visibleColumns); // Save state
                     applyFilters(); // Re-render table when column visibility changes
                 });
             }
@@ -236,6 +258,9 @@
 
             if (!messages || messages.length === 0) {
                 logMessagesPlaceholder.classList.remove('hidden');
+                // Ensure placeholder spans all possible columns if no file is loaded
+                const colspanValue = Object.values(visibleColumns).filter(v => v).length || 8;
+                logMessagesPlaceholder.setAttribute('colspan', colspanValue);
                 logMessagesBody.appendChild(document.createElement('tr')).appendChild(logMessagesPlaceholder);
                 return;
             }
@@ -364,12 +389,22 @@
                         // Reset filters and column visibility on new file load
                         logSearchInput.value = '';
                         tagFilterInput.value = '';
-                        appIdFilterInput.value = '';
                         levelFilterSelect.value = 'all';
+
+                        // Set App ID filter from loaded file or clear it
+                        if (currentLogData.metadata?.projectApplicationIds?.length > 0) {
+                            appIdFilterInput.value = currentLogData.metadata.projectApplicationIds[0];
+                        } else {
+                            appIdFilterInput.value = '';
+                        }
+                        saveToLocalStorage('appIdFilter', appIdFilterInput.value); // Save the new default
+
+                        // Reset column visibility to default (all true) for new file load
                         visibleColumns = Object.keys(columnMap).reduce((acc, key) => {
-                            acc[key] = true; // Reset all columns to visible
+                            acc[key] = true;
                             return acc;
                         }, {});
+                        saveToLocalStorage('visibleColumns', visibleColumns); // Save the reset state
                         renderColumnCheckboxes(); // Re-render checkboxes with reset state
                         applyFilters(); // Render with initial filters
                     } catch (error) {
@@ -394,22 +429,42 @@
         });
 
         // Search, Tag, App ID, and Level filter event listeners
-        logSearchInput.addEventListener('input', applyFilters);
-        tagFilterInput.addEventListener('input', applyFilters);
-        appIdFilterInput.addEventListener('input', applyFilters); // New event listener for App ID filter
-        levelFilterSelect.addEventListener('change', applyFilters);
+        logSearchInput.addEventListener('input', () => {
+            saveToLocalStorage('searchTerm', logSearchInput.value);
+            applyFilters();
+        });
+        tagFilterInput.addEventListener('input', () => {
+            saveToLocalStorage('tagFilter', tagFilterInput.value);
+            applyFilters();
+        });
+        appIdFilterInput.addEventListener('input', () => {
+            saveToLocalStorage('appIdFilter', appIdFilterInput.value);
+            applyFilters();
+        });
+        levelFilterSelect.addEventListener('change', () => {
+            saveToLocalStorage('levelFilter', levelFilterSelect.value);
+            applyFilters();
+        });
 
         // Clear all filters functionality
         clearFiltersBtn.addEventListener('click', () => {
             logSearchInput.value = '';
             tagFilterInput.value = '';
-            appIdFilterInput.value = ''; // Clear App ID filter
+            appIdFilterInput.value = '';
             levelFilterSelect.value = 'all';
+            
+            // Clear localStorage for filters
+            saveToLocalStorage('searchTerm', '');
+            saveToLocalStorage('tagFilter', '');
+            saveToLocalStorage('appIdFilter', '');
+            saveToLocalStorage('levelFilter', 'all');
+
             // Reset column visibility to default (all true)
             visibleColumns = Object.keys(columnMap).reduce((acc, key) => {
                 acc[key] = true;
                 return acc;
             }, {});
+            saveToLocalStorage('visibleColumns', visibleColumns); // Save the reset state
             renderColumnCheckboxes(); // Re-render checkboxes to show all checked
             applyFilters();
         });
@@ -434,9 +489,15 @@
 
         // Initial render with empty state and column checkboxes
         document.addEventListener('DOMContentLoaded', () => {
+            // Load persisted filter values
+            logSearchInput.value = loadFromLocalStorage('searchTerm', '');
+            tagFilterInput.value = loadFromLocalStorage('tagFilter', '');
+            appIdFilterInput.value = loadFromLocalStorage('appIdFilter', '');
+            levelFilterSelect.value = loadFromLocalStorage('levelFilter', 'all');
+
             renderMetadata(null);
             renderLogMessages(null);
-            renderColumnCheckboxes(); // Render checkboxes on initial load
+            renderColumnCheckboxes(); // Render checkboxes on initial load with persisted state
         });
     </script>
 </body>
