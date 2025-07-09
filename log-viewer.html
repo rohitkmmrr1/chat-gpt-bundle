@@ -19,67 +19,83 @@
         .log-level-fatal { background-color: #fecaca; color: #b91c1c; } /* Red for FATAL */
         .log-level-default { background-color: #f9fafb; color: #374151; } /* Default for unknown */
         .table-row-even { background-color: #f9fafb; }
-        .table-row-odd { background-color: #f3f4f6; }
+        .table-row-odd { background-color: #eef1f4; } /* Slightly darker odd row for more contrast */
+
+        /* Sticky header style */
+        #log-table-head th {
+            position: sticky;
+            top: 0;
+            z-index: 10; /* Ensure it stays above other content */
+            background-color: #e2e8f0; /* Slightly darker than table body for contrast */
+        }
     </style>
 </head>
-<body class="p-4 sm:p-6 md:p-8">
-    <div class="max-w-7xl mx-auto bg-white rounded-lg shadow-xl p-6 sm:p-8">
-        <h1 class="text-3xl font-extrabold text-gray-900 mb-6 text-center">Android Log Viewer</h1>
+<body class="p-3 sm:p-4 md:p-5">
+    <div class="max-w-7xl mx-auto bg-white rounded-lg shadow-xl p-5 sm:p-6">
+        <h1 class="text-2xl font-extrabold text-gray-900 mb-5 text-center">Android Log Viewer</h1>
 
         <!-- File Input Section -->
-        <div class="bg-gray-50 p-6 rounded-lg mb-8 shadow-inner flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0 sm:space-x-4">
-            <label for="json-file-input" class="block text-lg font-medium text-gray-700">Upload Log JSON File:</label>
-            <input type="file" id="json-file-input" accept=".json" class="flex-grow border border-gray-300 rounded-md p-2 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+        <div class="bg-gray-50 p-5 rounded-lg mb-6 shadow-inner flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0 sm:space-x-4">
+            <label for="json-file-input" class="block text-base font-medium text-gray-700">Upload Log File (.logcat):</label>
+            <input type="file" id="json-file-input" accept=".logcat" class="flex-grow border border-gray-300 rounded-md p-1.5 shadow-sm focus:ring-blue-500 focus:border-blue-500">
             <span id="file-error-message" class="text-red-600 text-sm hidden">Invalid JSON file. Please upload a valid log file.</span>
         </div>
 
         <!-- Metadata Section -->
-        <div class="bg-gray-50 p-6 rounded-lg mb-8 shadow-inner">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Metadata</h2>
-            <div id="metadata-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-gray-700">
+        <div class="bg-gray-50 p-5 rounded-lg mb-6 shadow-inner">
+            <h2 class="text-xl font-bold text-gray-800 mb-3">Metadata</h2>
+            <div id="metadata-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-sm text-gray-700">
                 <!-- Metadata will be injected here by JavaScript -->
-                <p class="col-span-full text-center text-gray-500" id="metadata-placeholder">Upload a JSON file to view metadata.</p>
+                <p class="col-span-full text-center text-gray-500" id="metadata-placeholder">Upload a .logcat file to view metadata.</p>
             </div>
-            <div class="mt-6">
-                <button id="copy-json-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out">
+            <div class="mt-5">
+                <button id="copy-json-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 px-3 rounded-lg shadow-md transition duration-300 ease-in-out text-sm">
                     Copy Raw JSON
                 </button>
-                <span id="copy-message" class="ml-4 text-green-600 font-medium hidden">Copied!</span>
+                <span id="copy-message" class="ml-3 text-green-600 font-medium hidden text-sm">Copied!</span>
             </div>
         </div>
 
         <!-- Log Messages Section -->
-        <div class="bg-gray-50 p-6 rounded-lg shadow-inner">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Log Messages</h2>
-            <div class="mb-4 flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
-                <input type="text" id="log-search-input" placeholder="Search logs..."
-                       class="flex-grow p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm w-full sm:w-auto">
-                <button id="clear-search-btn" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out w-full sm:w-auto">
-                    Clear Search
+        <div class="bg-gray-50 p-5 rounded-lg shadow-inner">
+            <h2 class="text-xl font-bold text-gray-800 mb-3">Log Messages</h2>
+            <div class="mb-4 flex flex-col sm:flex-row flex-wrap items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                <input type="text" id="log-search-input" placeholder="Search all fields..."
+                       class="flex-grow p-1.5 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm text-sm w-full sm:w-auto">
+                <input type="text" id="tag-filter-input" placeholder="Filter by Tag (comma-separated)..."
+                       class="flex-grow p-1.5 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm text-sm w-full sm:w-auto">
+                <input type="text" id="app-id-filter-input" placeholder="Filter by App ID..."
+                       class="flex-grow p-1.5 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm text-sm w-full sm:w-auto">
+                <select id="level-filter-select"
+                        class="flex-shrink-0 p-1.5 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 shadow-sm text-sm w-full sm:w-auto">
+                    <option value="all">All Levels</option>
+                    <!-- Options will be populated by JavaScript -->
+                </select>
+                <button id="clear-filters-btn" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-1.5 px-3 rounded-lg shadow-md transition duration-300 ease-in-out text-sm w-full sm:w-auto">
+                    Clear Filters
                 </button>
+            </div>
+
+            <!-- Column Visibility Section -->
+            <div class="bg-gray-100 p-4 rounded-lg mb-4 shadow-inner">
+                <h3 class="text-base font-semibold text-gray-800 mb-2">Column Visibility:</h3>
+                <div id="column-visibility-checkboxes" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 text-sm">
+                    <!-- Checkboxes will be injected here by JavaScript -->
+                </div>
             </div>
 
             <div class="overflow-x-auto rounded-lg shadow">
                 <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-200">
-                        <tr>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider rounded-tl-lg">Level</th>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">PID</th>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">TID</th>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">App ID</th>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Process</th>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Tag</th>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Timestamp</th>
-                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider rounded-tr-lg">Message</th>
-                        </tr>
+                    <thead id="log-table-head" class="bg-gray-200">
+                        <!-- Table headers will be injected here by JavaScript -->
                     </thead>
                     <tbody id="log-messages-body" class="bg-white divide-y divide-gray-200">
                         <!-- Log messages will be injected here by JavaScript -->
-                        <tr><td colspan="8" class="text-center text-gray-500 py-4" id="log-messages-placeholder">Upload a JSON file to view log messages.</td></tr>
+                        <tr><td colspan="8" class="text-center text-gray-500 py-4" id="log-messages-placeholder">Upload a .logcat file to view log messages.</td></tr>
                     </tbody>
                 </table>
             </div>
-            <p id="no-results-message" class="text-center text-gray-500 mt-4 hidden">No log messages match your search.</p>
+            <p id="no-results-message" class="text-center text-gray-500 mt-4 hidden text-sm">No log messages match your current filters.</p>
         </div>
     </div>
 
@@ -89,14 +105,37 @@
         const jsonFileInput = document.getElementById('json-file-input');
         const metadataContainer = document.getElementById('metadata-container');
         const metadataPlaceholder = document.getElementById('metadata-placeholder');
+        const logTableHead = document.getElementById('log-table-head');
         const logMessagesBody = document.getElementById('log-messages-body');
         const logMessagesPlaceholder = document.getElementById('log-messages-placeholder');
         const logSearchInput = document.getElementById('log-search-input');
-        const clearSearchBtn = document.getElementById('clear-search-btn');
+        const tagFilterInput = document.getElementById('tag-filter-input');
+        const appIdFilterInput = document.getElementById('app-id-filter-input'); // New App ID filter
+        const levelFilterSelect = document.getElementById('level-filter-select');
+        const clearFiltersBtn = document.getElementById('clear-filters-btn');
         const noResultsMessage = document.getElementById('no-results-message');
         const copyJsonBtn = document.getElementById('copy-json-btn');
         const copyMessage = document.getElementById('copy-message');
         const fileErrorMessage = document.getElementById('file-error-message');
+        const columnVisibilityCheckboxes = document.getElementById('column-visibility-checkboxes');
+
+        // Define column properties and how to extract data
+        const columnMap = {
+            level: { label: 'Level', getter: (log) => log.header?.logLevel || 'N/A' },
+            pid: { label: 'PID', getter: (log) => log.header?.pid || 'N/A' },
+            tid: { label: 'TID', getter: (log) => log.header?.tid || 'N/A' },
+            applicationId: { label: 'App ID', getter: (log) => log.header?.applicationId || 'N/A' },
+            processName: { label: 'Process', getter: (log) => log.header?.processName || 'N/A' },
+            tag: { label: 'Tag', getter: (log) => log.header?.tag || 'N/A' },
+            timestamp: { label: 'Timestamp', getter: (log) => formatTimestamp(log.header?.timestamp?.seconds, log.header?.timestamp?.nanos) },
+            message: { label: 'Message', getter: (log) => log.message || 'N/A' }
+        };
+
+        // Initial state for column visibility (all true by default)
+        let visibleColumns = Object.keys(columnMap).reduce((acc, key) => {
+            acc[key] = true;
+            return acc;
+        }, {});
 
         // Function to format timestamp
         function formatTimestamp(seconds, nanos) {
@@ -144,20 +183,111 @@
             }
         }
 
+        // Function to populate log level filter dropdown
+        function populateLevelFilter(messages) {
+            const levels = new Set();
+            messages.forEach(log => {
+                if (log.header && log.header.logLevel) {
+                    levels.add(log.header.logLevel.toUpperCase());
+                }
+            });
+
+            // Clear existing options except "All Levels"
+            levelFilterSelect.innerHTML = '<option value="all">All Levels</option>';
+
+            // Sort levels for consistent display
+            const order = ['FATAL', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'VERBOSE']; // Common log level order
+            const sortedLevels = Array.from(levels).sort((a, b) => {
+                return order.indexOf(a) - order.indexOf(b);
+            });
+
+            sortedLevels.forEach(level => {
+                const option = document.createElement('option');
+                option.value = level.toLowerCase();
+                option.textContent = level;
+                levelFilterSelect.appendChild(option);
+            });
+        }
+
+        // Function to render column visibility checkboxes
+        function renderColumnCheckboxes() {
+            columnVisibilityCheckboxes.innerHTML = '';
+            for (const key in columnMap) {
+                const div = document.createElement('div');
+                div.className = 'flex items-center space-x-1';
+                div.innerHTML = `
+                    <input type="checkbox" id="col-${key}" data-column="${key}" class="form-checkbox h-4 w-4 text-blue-600 rounded" ${visibleColumns[key] ? 'checked' : ''}>
+                    <label for="col-${key}" class="text-gray-700 cursor-pointer">${columnMap[key].label}</label>
+                `;
+                columnVisibilityCheckboxes.appendChild(div);
+
+                // Add event listener for checkbox changes
+                div.querySelector(`#col-${key}`).addEventListener('change', (event) => {
+                    visibleColumns[key] = event.target.checked;
+                    applyFilters(); // Re-render table when column visibility changes
+                });
+            }
+        }
+
         // Function to render log messages
-        function renderLogMessages(messages, searchTerm = '') {
+        function renderLogMessages(messages, searchTerm = '', levelFilter = 'all', tagFilter = '', appIdFilter = '') {
             logMessagesBody.innerHTML = ''; // Clear previous content
+            logTableHead.innerHTML = ''; // Clear previous header
+
             if (!messages || messages.length === 0) {
                 logMessagesPlaceholder.classList.remove('hidden');
-                logMessagesBody.appendChild(document.createElement('tr').appendChild(logMessagesPlaceholder));
+                logMessagesBody.appendChild(document.createElement('tr')).appendChild(logMessagesPlaceholder);
                 return;
             }
             logMessagesPlaceholder.classList.add('hidden');
 
+            // Render table header based on visibleColumns
+            const headerRow = logTableHead.insertRow();
+            let firstHeaderCell = true;
+            let lastHeaderCell = null;
+
+            for (const key in columnMap) {
+                if (visibleColumns[key]) {
+                    const th = document.createElement('th');
+                    th.scope = 'col';
+                    th.className = 'px-3 py-2 text-left text-xs font-medium text-gray-700 uppercase tracking-wider';
+                    th.textContent = columnMap[key].label;
+                    headerRow.appendChild(th);
+                    if (firstHeaderCell) {
+                        th.classList.add('rounded-tl-lg');
+                        firstHeaderCell = false;
+                    }
+                    lastHeaderCell = th;
+                }
+            }
+            if (lastHeaderCell) {
+                lastHeaderCell.classList.add('rounded-tr-lg');
+            }
+
+
             let rowCount = 0;
+            const searchLower = searchTerm.toLowerCase();
+            const tagFilters = tagFilter.split(',').map(t => t.trim().toLowerCase()).filter(t => t !== '');
+            const appIdLower = appIdFilter.toLowerCase();
+
             const filteredMessages = messages.filter(log => {
-                const searchLower = searchTerm.toLowerCase();
-                return JSON.stringify(log).toLowerCase().includes(searchLower);
+                const logLevel = log.header?.logLevel?.toLowerCase() || 'default';
+                const logTag = log.header?.tag?.toLowerCase() || '';
+                const logMessage = log.message?.toLowerCase() || '';
+                const applicationId = log.header?.applicationId?.toLowerCase() || '';
+                const processName = log.header?.processName?.toLowerCase() || '';
+
+                const matchesSearch = logMessage.includes(searchLower) ||
+                                      logTag.includes(searchLower) ||
+                                      applicationId.includes(searchLower) ||
+                                      processName.includes(searchLower);
+
+                const matchesLevel = (levelFilter === 'all' || logLevel === levelFilter);
+                const matchesAppId = (appIdFilter === '' || applicationId.includes(appIdLower));
+                const matchesTag = (tagFilters.length === 0 || tagFilters.some(filterTag => logTag.includes(filterTag)));
+
+
+                return matchesSearch && matchesLevel && matchesTag && matchesAppId;
             });
 
             if (filteredMessages.length === 0) {
@@ -169,7 +299,7 @@
 
             filteredMessages.forEach((log) => {
                 const row = logMessagesBody.insertRow();
-                const logLevel = log.header.logLevel ? log.header.logLevel.toLowerCase() : 'default';
+                const logLevel = log.header?.logLevel?.toLowerCase() || 'default';
                 let levelClass = '';
 
                 // Apply specific classes based on log level
@@ -194,24 +324,29 @@
                         break;
                 }
 
-                row.className = `text-sm ${levelClass} ${rowCount % 2 === 0 ? 'table-row-even' : 'table-row-odd'}`;
+                row.className = `text-xs ${levelClass} ${rowCount % 2 === 0 ? 'table-row-even' : 'table-row-odd'}`;
                 rowCount++; // Increment row count for alternating colors
 
-                row.insertCell().textContent = log.header.logLevel || 'N/A';
-                row.insertCell().textContent = log.header.pid || 'N/A';
-                row.insertCell().textContent = log.header.tid || 'N/A';
-                row.insertCell().textContent = log.header.applicationId || 'N/A';
-                row.insertCell().textContent = log.header.processName || 'N/A';
-                row.insertCell().textContent = log.header.tag || 'N/A';
-                row.insertCell().textContent = formatTimestamp(log.header.timestamp?.seconds, log.header.timestamp?.nanos);
-                row.insertCell().textContent = log.message || 'N/A';
-
-                // Add tooltips for full content on hover if text is truncated
-                row.querySelectorAll('td').forEach(cell => {
-                    cell.classList.add('px-4', 'py-2', 'whitespace-nowrap', 'overflow-hidden', 'text-ellipsis');
-                    cell.title = cell.textContent; // Set tooltip to full text
-                });
+                for (const key in columnMap) {
+                    if (visibleColumns[key]) {
+                        const cell = row.insertCell();
+                        cell.textContent = columnMap[key].getter(log);
+                        cell.classList.add('px-3', 'py-1.5', 'whitespace-nowrap', 'overflow-hidden', 'text-ellipsis');
+                        cell.title = cell.textContent; // Set tooltip to full text
+                    }
+                }
             });
+        }
+
+        // Function to apply all filters and re-render
+        function applyFilters() {
+            if (currentLogData) {
+                const searchTerm = logSearchInput.value;
+                const levelFilter = levelFilterSelect.value;
+                const tagFilter = tagFilterInput.value;
+                const appIdFilter = appIdFilterInput.value; // Get App ID filter value
+                renderLogMessages(currentLogData.logcatMessages, searchTerm, levelFilter, tagFilter, appIdFilter);
+            }
         }
 
         // Handle file input change
@@ -224,14 +359,27 @@
                         currentLogData = JSON.parse(e.target.result);
                         fileErrorMessage.classList.add('hidden');
                         renderMetadata(currentLogData.metadata);
-                        renderLogMessages(currentLogData.logcatMessages);
-                        logSearchInput.value = ''; // Clear search on new file load
+                        populateLevelFilter(currentLogData.logcatMessages); // Populate levels
+                        
+                        // Reset filters and column visibility on new file load
+                        logSearchInput.value = '';
+                        tagFilterInput.value = '';
+                        appIdFilterInput.value = '';
+                        levelFilterSelect.value = 'all';
+                        visibleColumns = Object.keys(columnMap).reduce((acc, key) => {
+                            acc[key] = true; // Reset all columns to visible
+                            return acc;
+                        }, {});
+                        renderColumnCheckboxes(); // Re-render checkboxes with reset state
+                        applyFilters(); // Render with initial filters
                     } catch (error) {
                         console.error("Error parsing JSON:", error);
                         fileErrorMessage.classList.remove('hidden');
                         currentLogData = null; // Clear data if parsing fails
                         renderMetadata(null); // Clear metadata display
                         renderLogMessages(null); // Clear log messages display
+                        levelFilterSelect.innerHTML = '<option value="all">All Levels</option>'; // Reset level filter
+                        columnVisibilityCheckboxes.innerHTML = ''; // Clear column checkboxes
                     }
                 };
                 reader.readAsText(file);
@@ -240,22 +388,30 @@
                 renderMetadata(null);
                 renderLogMessages(null);
                 fileErrorMessage.classList.add('hidden');
+                levelFilterSelect.innerHTML = '<option value="all">All Levels</option>'; // Reset level filter
+                columnVisibilityCheckboxes.innerHTML = ''; // Clear column checkboxes
             }
         });
 
-        // Search functionality
-        logSearchInput.addEventListener('input', (event) => {
-            if (currentLogData) {
-                renderLogMessages(currentLogData.logcatMessages, event.target.value);
-            }
-        });
+        // Search, Tag, App ID, and Level filter event listeners
+        logSearchInput.addEventListener('input', applyFilters);
+        tagFilterInput.addEventListener('input', applyFilters);
+        appIdFilterInput.addEventListener('input', applyFilters); // New event listener for App ID filter
+        levelFilterSelect.addEventListener('change', applyFilters);
 
-        // Clear search functionality
-        clearSearchBtn.addEventListener('click', () => {
+        // Clear all filters functionality
+        clearFiltersBtn.addEventListener('click', () => {
             logSearchInput.value = '';
-            if (currentLogData) {
-                renderLogMessages(currentLogData.logcatMessages);
-            }
+            tagFilterInput.value = '';
+            appIdFilterInput.value = ''; // Clear App ID filter
+            levelFilterSelect.value = 'all';
+            // Reset column visibility to default (all true)
+            visibleColumns = Object.keys(columnMap).reduce((acc, key) => {
+                acc[key] = true;
+                return acc;
+            }, {});
+            renderColumnCheckboxes(); // Re-render checkboxes to show all checked
+            applyFilters();
         });
 
         // Copy raw JSON to clipboard
@@ -276,10 +432,11 @@
             }
         });
 
-        // Initial render with empty state
+        // Initial render with empty state and column checkboxes
         document.addEventListener('DOMContentLoaded', () => {
             renderMetadata(null);
             renderLogMessages(null);
+            renderColumnCheckboxes(); // Render checkboxes on initial load
         });
     </script>
 </body>
