@@ -51,6 +51,12 @@
             gap: 1rem;
             margin-top: 1rem;
         }
+        .error-message {
+            color: #dc2626; /* text-red-600 */
+            font-size: 0.875rem; /* text-sm */
+            margin-top: 0.25rem; /* mt-1 */
+            display: none; /* Hidden by default */
+        }
     </style>
 </head>
 <body>
@@ -170,6 +176,15 @@
 
         // --- Components Rendering ---
 
+        // Helper to show/hide error messages
+        const toggleErrorMessage = (elementId, message, show) => {
+            const errorElement = document.getElementById(elementId);
+            if (errorElement) {
+                errorElement.textContent = message;
+                errorElement.style.display = show ? 'block' : 'none';
+            }
+        };
+
         // Question Form Component
         const renderQuestionForm = () => {
             const formContainer = document.createElement('div');
@@ -188,7 +203,8 @@
 
                     <div>
                         <label for="questionText" class="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
-                        <textarea id="questionText" name="questionText" rows="3" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Enter your question here..." required></textarea>
+                        <textarea id="questionText" name="questionText" rows="3" class="mt-1 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Enter your question here..."></textarea>
+                        <p id="questionText-error" class="error-message">Question text is required.</p>
                     </div>
 
                     <div>
@@ -202,7 +218,8 @@
                         <button type="button" id="add-option-btn" class="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out">
                             Add Option
                         </button>
-                        <p id="correct-answer-error" class="mt-1 text-sm text-red-600 hidden">Please select at least one correct answer.</p>
+                        <p id="options-error" class="error-message">Please add at least one option.</p>
+                        <p id="correct-answer-error" class="error-message">Please select a correct answer.</p>
                     </div>
 
                     <div id="matches-container" class="space-y-4 hidden">
@@ -211,6 +228,8 @@
                         <button type="button" id="add-match-btn" class="mt-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out">
                             Add Match Pair
                         </button>
+                        <p id="matches-error" class="error-message">Please add at least one match pair.</p>
+                        <p id="match-completeness-error" class="error-message">Please ensure all match pairs have both left and right items filled.</p>
                     </div>
 
                     <div class="flex justify-between items-center mt-8">
@@ -226,6 +245,7 @@
 
             const form = formContainer.querySelector('#question-form');
             const typeSelect = formContainer.querySelector('#type');
+            const questionTextarea = formContainer.querySelector('#questionText');
             const optionsContainer = formContainer.querySelector('#options-container');
             const matchesContainer = formContainer.querySelector('#matches-container');
             const optionFieldsWrapper = formContainer.querySelector('#option-fields-wrapper');
@@ -233,10 +253,14 @@
             const addOptionBtn = formContainer.querySelector('#add-option-btn');
             const addMatchBtn = formContainer.querySelector('#add-match-btn');
             const backToListBtn = formContainer.querySelector('#back-to-list-btn');
-            const correctAnswerError = formContainer.querySelector('#correct-answer-error');
 
-            let optionIds = []; // To manage unique IDs for options
-            let matchIds = []; // To manage unique IDs for matches
+            // Initial error state (hidden)
+            toggleErrorMessage('questionText-error', '', false);
+            toggleErrorMessage('options-error', '', false);
+            toggleErrorMessage('correct-answer-error', '', false);
+            toggleErrorMessage('matches-error', '', false);
+            toggleErrorMessage('match-completeness-error', '', false);
+
 
             const updateFormVisibility = () => {
                 const selectedType = typeSelect.value;
@@ -250,19 +274,17 @@
                 }
             };
 
-            const addOptionField = (initialText = '', initialIsCorrect = false) => {
+            const addOptionField = () => {
                 const optionId = uuidv4();
-                optionIds.push(optionId);
-
                 const optionDiv = document.createElement('div');
                 optionDiv.className = 'flex items-center space-x-2';
                 optionDiv.innerHTML = `
-                    <input type="text" name="optionText-${optionId}" value="${initialText}" class="flex-grow shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Option ${optionFieldsWrapper.children.length + 1}" required />
+                    <input type="text" data-id="${optionId}" class="flex-grow shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Option ${optionFieldsWrapper.children.length + 1}" />
                     ${typeSelect.value === 'multiple-choice' ? `
-                        <input type="radio" name="correctAnswer" value="${optionId}" ${initialIsCorrect ? 'checked' : ''} class="form-radio h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" title="Mark as correct" />
+                        <input type="radio" name="correctAnswer" value="${optionId}" class="form-radio h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" title="Mark as correct" />
                     ` : ''}
                     ${typeSelect.value === 'multi-select' ? `
-                        <input type="checkbox" name="correctAnswers" value="${optionId}" ${initialIsCorrect ? 'checked' : ''} class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" title="Mark as correct" />
+                        <input type="checkbox" name="correctAnswers" value="${optionId}" class="form-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" title="Mark as correct" />
                     ` : ''}
                     <button type="button" class="p-2 text-red-600 hover:text-red-800 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -272,21 +294,27 @@
                 `;
                 optionDiv.querySelector('button').onclick = () => {
                     optionDiv.remove();
-                    optionIds = optionIds.filter(id => id !== optionId);
+                    // Re-evaluate options validity after removal
+                    validateForm(false); // Don't submit, just validate
                 };
                 optionFieldsWrapper.appendChild(optionDiv);
+
+                // Add input event listeners for validation feedback
+                optionDiv.querySelector('input[type="text"]').oninput = () => validateForm(false);
+                if (typeSelect.value === 'multiple-choice') {
+                    optionDiv.querySelector('input[type="radio"]').onchange = () => validateForm(false);
+                } else if (typeSelect.value === 'multi-select') {
+                    optionDiv.querySelector('input[type="checkbox"]').onchange = () => validateForm(false);
+                }
             };
 
-            const addMatchField = (initialLeft = '', initialRight = '') => {
-                const matchId = uuidv4();
-                matchIds.push(matchId);
-
+            const addMatchField = () => {
                 const matchDiv = document.createElement('div');
                 matchDiv.className = 'flex items-center space-x-2';
                 matchDiv.innerHTML = `
-                    <input type="text" name="matchLeft-${matchId}" value="${initialLeft}" class="flex-1 shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Left item ${matchFieldsWrapper.children.length + 1}" required />
+                    <input type="text" data-type="left" class="flex-1 shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Left item ${matchFieldsWrapper.children.length + 1}" />
                     <span class="text-gray-600">-</span>
-                    <input type="text" name="matchRight-${matchId}" value="${initialRight}" class="flex-1 shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Right item ${matchFieldsWrapper.children.length + 1}" required />
+                    <input type="text" data-type="right" class="flex-1 shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Right item ${matchFieldsWrapper.children.length + 1}" />
                     <button type="button" class="p-2 text-red-600 hover:text-red-800 rounded-full focus:outline-none focus:ring-2 focus:ring-red-500">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm6 0a1 1 0 11-2 0v6a1 1 0 112 0V8z" clip-rule="evenodd" />
@@ -295,8 +323,10 @@
                 `;
                 matchDiv.querySelector('button').onclick = () => {
                     matchDiv.remove();
-                    matchIds = matchIds.filter(id => id !== matchId);
+                    validateForm(false); // Don't submit, just validate
                 };
+                matchDiv.querySelector('input[data-type="left"]').oninput = () => validateForm(false);
+                matchDiv.querySelector('input[data-type="right"]').oninput = () => validateForm(false);
                 matchFieldsWrapper.appendChild(matchDiv);
             };
 
@@ -308,15 +338,14 @@
 
             typeSelect.onchange = () => {
                 updateFormVisibility();
-                // Re-render options/matches to update radio/checkbox names
+                // Clear and re-add initial options/matches to reset radio/checkbox names
                 optionFieldsWrapper.innerHTML = '';
                 matchFieldsWrapper.innerHTML = '';
-                optionIds = [];
-                matchIds = [];
                 addOptionField();
                 addOptionField();
                 addMatchField();
                 addMatchField();
+                validateForm(false); // Re-validate on type change
             };
             updateFormVisibility(); // Set initial visibility
 
@@ -324,18 +353,102 @@
             addMatchBtn.onclick = () => addMatchField();
             backToListBtn.onclick = () => { currentView = 'list'; renderApp(); };
 
-            form.onsubmit = async (event) => {
-                event.preventDefault();
-                correctAnswerError.classList.add('hidden'); // Hide previous errors
+            // Input event listener for question text
+            questionTextarea.oninput = () => toggleErrorMessage('questionText-error', '', !questionTextarea.value.trim());
 
-                const questionText = form.querySelector('#questionText').value.trim();
-                const imageText = form.querySelector('#imageText').value.trim();
+
+            const validateForm = (isSubmitAttempt = true) => {
+                let isValid = true;
+
+                // Validate Question Text
+                if (!questionTextarea.value.trim()) {
+                    toggleErrorMessage('questionText-error', 'Question text is required.', true);
+                    isValid = false;
+                } else {
+                    toggleErrorMessage('questionText-error', '', false);
+                }
+
                 const type = typeSelect.value;
 
-                if (!questionText) {
-                    await showMessage('Question text is required.');
+                if (type === 'multiple-choice' || type === 'multi-select') {
+                    const options = [];
+                    optionFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((optionDiv) => {
+                        const input = optionDiv.querySelector('input[type="text"]');
+                        if (input && input.value.trim() !== '') {
+                            options.push({ id: input.dataset.id, text: input.value.trim() });
+                        }
+                    });
+
+                    if (options.length === 0) {
+                        toggleErrorMessage('options-error', 'Please add at least one option.', true);
+                        isValid = false;
+                    } else {
+                        toggleErrorMessage('options-error', '', false);
+                    }
+
+                    if (type === 'multiple-choice') {
+                        const correctAnswerRadio = form.querySelector('input[name="correctAnswer"]:checked');
+                        if (!correctAnswerRadio) {
+                            toggleErrorMessage('correct-answer-error', 'Please select a correct answer.', true);
+                            isValid = false;
+                        } else {
+                            toggleErrorMessage('correct-answer-error', '', false);
+                        }
+                    } else if (type === 'multi-select') {
+                        const correctAnswersCheckboxes = Array.from(form.querySelectorAll('input[name="correctAnswers"]:checked'));
+                        if (correctAnswersCheckboxes.length === 0) {
+                            toggleErrorMessage('correct-answer-error', 'Please select at least one correct answer.', true);
+                            isValid = false;
+                        } else {
+                            toggleErrorMessage('correct-answer-error', '', false);
+                        }
+                    }
+                } else if (type === 'match-the-following') {
+                    const matches = [];
+                    let allMatchesValid = true;
+                    matchFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((matchDiv) => {
+                        const leftInput = matchDiv.querySelector('input[data-type="left"]');
+                        const rightInput = matchDiv.querySelector('input[data-type="right"]');
+                        if (leftInput && rightInput) {
+                            const leftVal = leftInput.value.trim();
+                            const rightVal = rightInput.value.trim();
+                            if (leftVal !== '' && rightVal !== '') {
+                                matches.push({ left: leftVal, right: rightVal });
+                            } else if (leftVal !== '' || rightVal !== '') {
+                                allMatchesValid = false; // Partial input
+                            }
+                        }
+                    });
+
+                    if (matches.length === 0) {
+                        toggleErrorMessage('matches-error', 'Please add at least one match pair.', true);
+                        isValid = false;
+                    } else {
+                        toggleErrorMessage('matches-error', '', false);
+                    }
+
+                    if (!allMatchesValid) {
+                        toggleErrorMessage('match-completeness-error', 'Please ensure all match pairs have both left and right items filled.', true);
+                        isValid = false;
+                    } else {
+                        toggleErrorMessage('match-completeness-error', '', false);
+                    }
+                }
+
+                return isValid;
+            };
+
+            form.onsubmit = async (event) => {
+                event.preventDefault();
+
+                if (!validateForm(true)) {
+                    await showMessage('Please fix the errors in the form before submitting.');
                     return;
                 }
+
+                const questionText = questionTextarea.value.trim();
+                const imageText = form.querySelector('#imageText').value.trim();
+                const type = typeSelect.value;
 
                 const newQuestion = {
                     type,
@@ -345,63 +458,35 @@
 
                 if (type === 'multiple-choice') {
                     const options = [];
-                    let hasCorrectAnswer = false;
-                    optionFieldsWrapper.querySelectorAll('input[type="text"]').forEach((input, index) => {
-                        const optionId = optionIds[index];
-                        if (input.value.trim() !== '') {
-                            options.push({ id: optionId, text: input.value.trim() });
+                    optionFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((optionDiv) => {
+                        const input = optionDiv.querySelector('input[type="text"]');
+                        if (input && input.value.trim() !== '') {
+                            options.push({ id: input.dataset.id, text: input.value.trim() });
                         }
                     });
                     const correctAnswerRadio = form.querySelector('input[name="correctAnswer"]:checked');
-                    if (options.length === 0) {
-                        await showMessage('Please add at least one option.');
-                        return;
-                    }
-                    if (!correctAnswerRadio) {
-                        correctAnswerError.classList.remove('hidden');
-                        return;
-                    }
                     newQuestion.options = options;
                     newQuestion.correctAnswer = correctAnswerRadio.value;
                 } else if (type === 'multi-select') {
                     const options = [];
-                    optionFieldsWrapper.querySelectorAll('input[type="text"]').forEach((input, index) => {
-                        const optionId = optionIds[index];
-                        if (input.value.trim() !== '') {
-                            options.push({ id: optionId, text: input.value.trim() });
+                    optionFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((optionDiv) => {
+                        const input = optionDiv.querySelector('input[type="text"]');
+                        if (input && input.value.trim() !== '') {
+                            options.push({ id: input.dataset.id, text: input.value.trim() });
                         }
                     });
                     const correctAnswersCheckboxes = Array.from(form.querySelectorAll('input[name="correctAnswers"]:checked')).map(cb => cb.value);
-                    if (options.length === 0) {
-                        await showMessage('Please add at least one option.');
-                        return;
-                    }
-                    if (correctAnswersCheckboxes.length === 0) {
-                        correctAnswerError.classList.remove('hidden');
-                        return;
-                    }
                     newQuestion.options = options;
                     newQuestion.correctAnswers = correctAnswersCheckboxes;
                 } else if (type === 'match-the-following') {
                     const matches = [];
-                    let allMatchesValid = true;
-                    matchFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((div) => {
-                        const leftInput = div.querySelector('input[name^="matchLeft-"]');
-                        const rightInput = div.querySelector('input[name^="matchRight-"]');
+                    matchFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((matchDiv) => {
+                        const leftInput = matchDiv.querySelector('input[data-type="left"]');
+                        const rightInput = matchDiv.querySelector('input[data-type="right"]');
                         if (leftInput && rightInput && leftInput.value.trim() !== '' && rightInput.value.trim() !== '') {
                             matches.push({ left: leftInput.value.trim(), right: rightInput.value.trim() });
-                        } else if (leftInput.value.trim() !== '' || rightInput.value.trim() !== '') {
-                            allMatchesValid = false; // Partial input
                         }
                     });
-                    if (matches.length === 0) {
-                        await showMessage('Please add at least one match pair.');
-                        return;
-                    }
-                    if (!allMatchesValid) {
-                        await showMessage('Please ensure all match pairs have both left and right items filled.');
-                        return;
-                    }
                     newQuestion.matches = matches;
                 }
 
@@ -409,12 +494,15 @@
                 form.reset();
                 optionFieldsWrapper.innerHTML = ''; // Clear options
                 matchFieldsWrapper.innerHTML = ''; // Clear matches
-                optionIds = [];
-                matchIds = [];
                 addOptionField(); // Add initial options back
                 addOptionField();
                 addMatchField();
                 addMatchField();
+                toggleErrorMessage('questionText-error', '', false); // Clear errors on reset
+                toggleErrorMessage('options-error', '', false);
+                toggleErrorMessage('correct-answer-error', '', false);
+                toggleErrorMessage('matches-error', '', false);
+                toggleErrorMessage('match-completeness-error', '', false);
                 currentView = 'list';
                 renderApp();
             };
