@@ -57,6 +57,14 @@
             margin-top: 0.25rem; /* mt-1 */
             display: none; /* Hidden by default */
         }
+        .correct-answer-text {
+            color: #16a34a; /* text-green-600 */
+            font-weight: 600; /* font-semibold */
+        }
+        .incorrect-answer-text {
+            color: #dc2626; /* text-red-600 */
+            font-weight: 600; /* font-semibold */
+        }
     </style>
 </head>
 <body>
@@ -74,8 +82,9 @@
         };
 
         // Global state
-        let currentView = 'list';
         let questions = [];
+        let shuffledQuestionsForTest = []; // Store shuffled questions for the current test session
+        let userAnswersForTest = {}; // Store user answers for the current test session
 
         // --- Custom Modal/Message Box Functions ---
         function showMessage(message, type = 'alert') {
@@ -351,7 +360,7 @@
 
             addOptionBtn.onclick = () => addOptionField();
             addMatchBtn.onclick = () => addMatchField();
-            backToListBtn.onclick = () => { currentView = 'list'; renderApp(); };
+            backToListBtn.onclick = () => { window.location.hash = '#list'; };
 
             // Input event listener for question text
             questionTextarea.oninput = () => toggleErrorMessage('questionText-error', '', !questionTextarea.value.trim());
@@ -503,8 +512,7 @@
                 toggleErrorMessage('correct-answer-error', '', false);
                 toggleErrorMessage('matches-error', '', false);
                 toggleErrorMessage('match-completeness-error', '', false);
-                currentView = 'list';
-                renderApp();
+                window.location.hash = '#list'; // Navigate back to list
             };
 
             return formContainer;
@@ -543,11 +551,10 @@
                 </div>
             `;
 
-            listContainer.querySelector('#add-question-btn').onclick = () => { currentView = 'add'; renderApp(); };
+            listContainer.querySelector('#add-question-btn').onclick = () => { window.location.hash = '#add'; };
             listContainer.querySelector('#start-test-btn').onclick = () => {
                 if (questions.length > 0) {
-                    currentView = 'test';
-                    renderApp();
+                    window.location.hash = '#test';
                 }
             };
             listContainer.querySelector('#export-questions-btn').onclick = () => exportQuestions();
@@ -603,63 +610,65 @@
             const testScreenContainer = document.createElement('div');
             testScreenContainer.className = 'p-6 bg-white rounded-lg shadow-md max-w-2xl mx-auto my-8';
 
-            let shuffledQuestions = [];
             let currentQuestionIndex = 0;
-            let userAnswers = {}; // { questionId: userAnswer }
             let score = 0;
             let showResults = false;
 
             const initializeTest = () => {
-                shuffledQuestions = [...questions].sort(() => Math.random() - 0.5);
+                shuffledQuestionsForTest = [...questions].sort(() => Math.random() - 0.5);
                 currentQuestionIndex = 0;
-                userAnswers = {};
+                userAnswersForTest = {};
                 score = 0;
                 showResults = false;
                 renderTestContent();
             };
 
             const handleAnswerChange = (questionId, answer) => {
-                userAnswers[questionId] = answer;
+                userAnswersForTest[questionId] = answer;
             };
 
-            const checkAnswer = () => {
-                const currentQuestion = shuffledQuestions[currentQuestionIndex];
-                if (!currentQuestion) return false;
+            const checkAnswer = (question, userAnswer) => {
+                if (!question) return false;
 
-                const userAnswer = userAnswers[currentQuestion.id];
-                if (currentQuestion.type === 'multiple-choice') {
-                    return userAnswer === currentQuestion.correctAnswer;
-                } else if (currentQuestion.type === 'multi-select') {
+                if (question.type === 'multiple-choice') {
+                    return userAnswer === question.correctAnswer;
+                } else if (question.type === 'multi-select') {
                     const userSelected = new Set(userAnswer || []);
-                    const correctSelected = new Set(currentQuestion.correctAnswers || []);
+                    const correctSelected = new Set(question.correctAnswers || []);
                     if (userSelected.size !== correctSelected.size) return false;
                     for (let item of userSelected) {
                         if (!correctSelected.has(item)) return false;
                     }
                     return true;
-                } else if (currentQuestion.type === 'match-the-following') {
+                } else if (question.type === 'match-the-following') {
                     if (!userAnswer) return false;
-                    return currentQuestion.matches.every(match => userAnswer[match.left] === match.right);
+                    return question.matches.every(match => userAnswer[match.left] === match.right);
                 }
                 return false;
             };
 
             const handleNextQuestion = () => {
-                if (checkAnswer()) {
+                const currentQuestion = shuffledQuestionsForTest[currentQuestionIndex];
+                if (checkAnswer(currentQuestion, userAnswersForTest[currentQuestion.id])) {
                     score++;
                 }
 
-                if (currentQuestionIndex < shuffledQuestions.length - 1) {
+                if (currentQuestionIndex < shuffledQuestionsForTest.length - 1) {
                     currentQuestionIndex++;
                     renderTestContent();
                 } else {
                     showResults = true;
-                    renderTestContent(); // Render results
+                    renderTestContent(); // End of test, show results
                 }
             };
 
+            const getOptionTextById = (question, optionId) => {
+                const option = question.options.find(opt => opt.id === optionId);
+                return option ? option.text : 'N/A';
+            };
+
             const renderQuestionContent = () => {
-                const currentQuestion = shuffledQuestions[currentQuestionIndex];
+                const currentQuestion = shuffledQuestionsForTest[currentQuestionIndex];
                 if (!currentQuestion) return '';
 
                 let questionHtml = `
@@ -670,7 +679,7 @@
                 if (currentQuestion.type === 'multiple-choice') {
                     questionHtml += `<div class="space-y-2">`;
                     currentQuestion.options.forEach(option => {
-                        const checked = userAnswers[currentQuestion.id] === option.id ? 'checked' : '';
+                        const checked = userAnswersForTest[currentQuestion.id] === option.id ? 'checked' : '';
                         questionHtml += `
                             <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 transition duration-150 ease-in-out">
                                 <input type="radio" name="question-${currentQuestion.id}" value="${option.id}" ${checked} class="form-radio h-5 w-5 text-indigo-600 border-gray-300 focus:ring-indigo-500" />
@@ -682,7 +691,7 @@
                 } else if (currentQuestion.type === 'multi-select') {
                     questionHtml += `<div class="space-y-2">`;
                     currentQuestion.options.forEach(option => {
-                        const checked = (userAnswers[currentQuestion.id] || []).includes(option.id) ? 'checked' : '';
+                        const checked = (userAnswersForTest[currentQuestion.id] || []).includes(option.id) ? 'checked' : '';
                         questionHtml += `
                             <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 transition duration-150 ease-in-out">
                                 <input type="checkbox" name="question-${currentQuestion.id}" value="${option.id}" ${checked} class="form-checkbox h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
@@ -710,7 +719,7 @@
                                     <select data-left-item="${match.left}" class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
                                         <option value="">-- Select --</option>
                                         ${shuffledRightOptions.map(option => `
-                                            <option value="${option}" ${((userAnswers[currentQuestion.id] || {})[match.left] === option) ? 'selected' : ''}>${option}</option>
+                                            <option value="${option}" ${((userAnswersForTest[currentQuestion.id] || {})[match.left] === option) ? 'selected' : ''}>${option}</option>
                                         `).join('')}
                                     </select>
                                 `).join('')}
@@ -724,7 +733,7 @@
             const renderTestContent = () => {
                 testScreenContainer.innerHTML = ''; // Clear previous content
 
-                if (shuffledQuestions.length === 0) {
+                if (shuffledQuestionsForTest.length === 0) {
                     testScreenContainer.className = 'p-6 bg-white rounded-lg shadow-md max-w-2xl mx-auto my-8 text-center';
                     testScreenContainer.innerHTML = `
                         <p class="text-lg text-gray-600 mb-4">No questions available to start the test. Please add some questions first.</p>
@@ -732,34 +741,85 @@
                             Back to List
                         </button>
                     `;
-                    testScreenContainer.querySelector('#test-back-to-list-btn').onclick = () => { currentView = 'list'; renderApp(); };
+                    testScreenContainer.querySelector('#test-back-to-list-btn').onclick = () => { window.location.hash = '#list'; };
                     return;
                 }
 
                 if (showResults) {
-                    testScreenContainer.className = 'p-6 bg-white rounded-lg shadow-md max-w-2xl mx-auto my-8 text-center';
-                    testScreenContainer.innerHTML = `
-                        <h2 class="text-3xl font-bold mb-6 text-indigo-700">Test Results</h2>
-                        <p class="text-xl text-gray-800 mb-4">You scored: <span class="font-bold text-green-600">${score}</span> out of <span class="font-bold">${shuffledQuestions.length}</span></p>
-                        <button id="test-back-to-home-btn" class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-md shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out">
-                            Back to Home
-                        </button>
+                    testScreenContainer.className = 'p-6 bg-white rounded-lg shadow-md max-w-4xl mx-auto my-8'; // Wider for results
+                    let resultsHtml = `
+                        <h2 class="text-3xl font-bold mb-6 text-indigo-700 text-center">Test Results</h2>
+                        <p class="text-xl text-gray-800 mb-8 text-center">You scored: <span class="font-bold text-green-600">${score}</span> out of <span class="font-bold">${shuffledQuestionsForTest.length}</span></p>
+                        <div class="space-y-8">
                     `;
-                    testScreenContainer.querySelector('#test-back-to-home-btn').onclick = () => { currentView = 'list'; renderApp(); };
+
+                    shuffledQuestionsForTest.forEach((q, index) => {
+                        const userAnswer = userAnswersForTest[q.id];
+                        const isCorrect = checkAnswer(q, userAnswer);
+                        const resultClass = isCorrect ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
+
+                        resultsHtml += `
+                            <div class="p-4 rounded-lg shadow-sm border-2 ${resultClass}">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-2">Question ${index + 1}: ${q.questionText}</h3>
+                                ${q.imageText ? `<p class="text-sm text-gray-500 italic mb-2">Image/Text: ${q.imageText}</p>` : ''}
+                        `;
+
+                        if (q.type === 'multiple-choice') {
+                            const userSelectedText = getOptionTextById(q, userAnswer);
+                            const correctText = getOptionTextById(q, q.correctAnswer);
+                            resultsHtml += `
+                                <p class="text-sm text-gray-700">Your Answer: <span class="${isCorrect ? 'correct-answer-text' : 'incorrect-answer-text'}">${userSelectedText || 'No answer'}</span></p>
+                                <p class="text-sm text-gray-700">Correct Answer: <span class="correct-answer-text">${correctText}</span></p>
+                            `;
+                        } else if (q.type === 'multi-select') {
+                            const userSelectedTexts = (userAnswer || []).map(id => getOptionTextById(q, id)).join(', ');
+                            const correctTexts = (q.correctAnswers || []).map(id => getOptionTextById(q, id)).join(', ');
+                            resultsHtml += `
+                                <p class="text-sm text-gray-700">Your Answers: <span class="${isCorrect ? 'correct-answer-text' : 'incorrect-answer-text'}">${userSelectedTexts || 'No answer'}</span></p>
+                                <p class="text-sm text-gray-700">Correct Answers: <span class="correct-answer-text">${correctTexts}</span></p>
+                            `;
+                        } else if (q.type === 'match-the-following') {
+                            resultsHtml += `<div class="grid grid-cols-2 gap-2 text-sm text-gray-700 mt-2">`;
+                            q.matches.forEach(match => {
+                                const userMatch = (userAnswer || {})[match.left] || 'No answer';
+                                const matchCorrect = userMatch === match.right;
+                                resultsHtml += `
+                                    <div class="font-medium">${match.left}</div>
+                                    <div>
+                                        Your: <span class="${matchCorrect ? 'correct-answer-text' : 'incorrect-answer-text'}">${userMatch}</span><br>
+                                        Correct: <span class="correct-answer-text">${match.right}</span>
+                                    </div>
+                                `;
+                            });
+                            resultsHtml += `</div>`;
+                        }
+                        resultsHtml += `</div>`; // Close question div
+                    });
+
+                    resultsHtml += `
+                        </div>
+                        <div class="flex justify-center mt-8">
+                            <button id="test-back-to-home-btn" class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-md shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out">
+                                Back to Home
+                            </button>
+                        </div>
+                    `;
+                    testScreenContainer.innerHTML = resultsHtml;
+                    testScreenContainer.querySelector('#test-back-to-home-btn').onclick = () => { window.location.hash = '#list'; };
                     return;
                 }
 
-                const currentQuestion = shuffledQuestions[currentQuestionIndex];
+                const currentQuestion = shuffledQuestionsForTest[currentQuestionIndex];
                 testScreenContainer.innerHTML = `
                     <h2 class="text-2xl font-bold mb-6 text-gray-800 text-center">
-                        Question ${currentQuestionIndex + 1} of ${shuffledQuestions.length}
+                        Question ${currentQuestionIndex + 1} of ${shuffledQuestionsForTest.length}
                     </h2>
                     <div id="question-content">
                         ${renderQuestionContent()}
                     </div>
                     <div class="flex justify-between items-center mt-8">
                         <button id="next-question-btn" class="flex-1 mr-2 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-md shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out">
-                            ${currentQuestionIndex < shuffledQuestions.length - 1 ? 'Next Question' : 'Finish Test'}
+                            ${currentQuestionIndex < shuffledQuestionsForTest.length - 1 ? 'Next Question' : 'Finish Test'}
                         </button>
                         <button id="exit-test-btn" class="flex-1 ml-2 px-6 py-3 bg-gray-500 text-white font-semibold rounded-md shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-150 ease-in-out">
                             Exit Test
@@ -775,7 +835,7 @@
                 } else if (currentQuestion.type === 'multi-select') {
                     testScreenContainer.querySelectorAll(`input[name="question-${currentQuestion.id}"]`).forEach(checkbox => {
                         checkbox.onchange = (e) => {
-                            let currentSelections = userAnswers[currentQuestion.id] || [];
+                            let currentSelections = userAnswersForTest[currentQuestion.id] || [];
                             if (e.target.checked) {
                                 handleAnswerChange(currentQuestion.id, [...currentSelections, e.target.value]);
                             } else {
@@ -788,7 +848,7 @@
                         selectElement.onchange = (e) => {
                             const leftItem = e.target.dataset.leftItem;
                             handleAnswerChange(currentQuestion.id, {
-                                ...(userAnswers[currentQuestion.id] || {}),
+                                ...(userAnswersForTest[currentQuestion.id] || {}),
                                 [leftItem]: e.target.value
                             });
                         };
@@ -796,7 +856,7 @@
                 }
 
                 testScreenContainer.querySelector('#next-question-btn').onclick = handleNextQuestion;
-                testScreenContainer.querySelector('#exit-test-btn').onclick = () => { currentView = 'list'; renderApp(); };
+                testScreenContainer.querySelector('#exit-test-btn').onclick = () => { window.location.hash = '#list'; };
             };
 
             // Initial call to set up the test
@@ -810,18 +870,31 @@
             const appDiv = document.getElementById('app');
             appDiv.innerHTML = ''; // Clear existing content
 
-            if (currentView === 'list') {
-                appDiv.appendChild(renderQuestionList());
-            } else if (currentView === 'add') {
+            const hash = window.location.hash;
+
+            if (hash === '#add') {
                 appDiv.appendChild(renderQuestionForm());
-            } else if (currentView === 'test') {
+            } else if (hash === '#test') {
                 appDiv.appendChild(renderTestScreen());
+            } else { // Default to list if hash is empty or unrecognized
+                window.location.hash = '#list'; // Ensure hash is set for consistency
+                appDiv.appendChild(renderQuestionList());
             }
         };
 
         // Initial load and render
         window.onload = () => {
             loadQuestions();
+            // Set initial hash if none exists, otherwise render based on existing hash
+            if (!window.location.hash) {
+                window.location.hash = '#list';
+            } else {
+                renderApp();
+            }
+        };
+
+        // Listen for hash changes to re-render the app
+        window.onhashchange = () => {
             renderApp();
         };
     </script>
