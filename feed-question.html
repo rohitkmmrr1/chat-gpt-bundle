@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
         body {
             font-family: 'Inter', sans-serif;
             margin: 0;
@@ -19,10 +20,12 @@
             align-items: flex-start; /* Align to top */
             padding: 1rem; /* p-4 */
         }
+
         .container {
             width: 100%;
             max-width: 64rem; /* max-w-4xl */
         }
+
         /* Custom modal styles */
         .modal-overlay {
             position: fixed;
@@ -36,6 +39,7 @@
             align-items: center;
             z-index: 1000;
         }
+
         .modal-content {
             background-color: white;
             padding: 1.5rem;
@@ -45,22 +49,26 @@
             width: 400px;
             text-align: center;
         }
+
         .modal-buttons {
             display: flex;
             justify-content: center;
             gap: 1rem;
             margin-top: 1rem;
         }
+
         .error-message {
             color: #dc2626; /* text-red-600 */
             font-size: 0.875rem; /* text-sm */
             margin-top: 0.25rem; /* mt-1 */
             display: none; /* Hidden by default */
         }
+
         .correct-answer-text {
             color: #16a34a; /* text-green-600 */
             font-weight: 600; /* font-semibold */
         }
+
         .incorrect-answer-text {
             color: #dc2626; /* text-red-600 */
             font-weight: 600; /* font-semibold */
@@ -68,30 +76,30 @@
     </style>
 </head>
 <body>
-    <div id="app" class="container">
-        <!-- Content will be rendered here by JavaScript -->
-    </div>
+<div id="app" class="container">
+    <!-- Content will be rendered here by JavaScript -->
+</div>
 
-    <script>
-        // Utility for generating unique IDs
-        const uuidv4 = () => {
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
-            });
-        };
+<script>
+    // Utility for generating unique IDs
+    const uuidv4 = () => {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    };
 
-        // Global state
-        let questions = [];
-        let shuffledQuestionsForTest = []; // Store shuffled questions for the current test session
-        let userAnswersForTest = {}; // Store user answers for the current test session
+    // Global state
+    let questions = [];
+    let shuffledQuestionsForTest = []; // Store shuffled questions for the current test session
+    let userAnswersForTest = {}; // Store user answers for the current test session
 
-        // --- Custom Modal/Message Box Functions ---
-        function showMessage(message, type = 'alert') {
-            return new Promise((resolve) => {
-                const modalOverlay = document.createElement('div');
-                modalOverlay.className = 'modal-overlay';
-                modalOverlay.innerHTML = `
+    // --- Custom Modal/Message Box Functions ---
+    function showMessage(message, type = 'alert') {
+        return new Promise((resolve) => {
+            const modalOverlay = document.createElement('div');
+            modalOverlay.className = 'modal-overlay';
+            modalOverlay.innerHTML = `
                     <div class="modal-content">
                         <p class="text-lg font-semibold mb-4 text-gray-800">${message}</p>
                         <div class="modal-buttons">
@@ -100,105 +108,135 @@
                         </div>
                     </div>
                 `;
-                document.body.appendChild(modalOverlay);
+            document.body.appendChild(modalOverlay);
 
-                document.getElementById('modal-ok-btn').onclick = () => {
+            document.getElementById('modal-ok-btn').onclick = () => {
+                document.body.removeChild(modalOverlay);
+                resolve(true);
+            };
+            if (type === 'confirm') {
+                document.getElementById('modal-cancel-btn').onclick = () => {
                     document.body.removeChild(modalOverlay);
-                    resolve(true);
+                    resolve(false);
                 };
-                if (type === 'confirm') {
-                    document.getElementById('modal-cancel-btn').onclick = () => {
-                        document.body.removeChild(modalOverlay);
-                        resolve(false);
-                    };
-                }
-            });
+            }
+        });
+    }
+
+    // --- Local Storage Functions ---
+    const loadQuestions = async () => {
+        const savedQuestions = localStorage.getItem('mcqQuestions');
+        if (savedQuestions) {
+            questions = JSON.parse(savedQuestions);
         }
+    };
 
-        // --- Local Storage Functions ---
-        const loadQuestions = () => {
-            const savedQuestions = localStorage.getItem('mcqQuestions');
-            if (savedQuestions) {
-                questions = JSON.parse(savedQuestions);
-            }
-        };
+    const saveQuestions = () => {
+        localStorage.setItem('mcqQuestions', JSON.stringify(questions));
+    };
 
-        const saveQuestions = () => {
-            localStorage.setItem('mcqQuestions', JSON.stringify(questions));
-        };
+    function getUserId() {
+        let userId = localStorage.getItem("primer-user-id-fingerprint")
+        if (userId === null) {
+            const _userId = uuidv4();
+            localStorage.setItem("primer-user-id-fingerprint", _userId);
+            userId = _userId;
+        }
+        return userId;
+    }
 
-        // --- Data Management Functions ---
-        const addQuestion = (newQuestion) => {
-            questions.push({ ...newQuestion, id: uuidv4() });
-            saveQuestions();
-            renderApp(); // Re-render the app after adding
-        };
 
-        const clearAllQuestions = async () => {
-            const confirmed = await showMessage('Are you sure you want to clear all questions? This action cannot be undone.', 'confirm');
-            if (confirmed) {
-                questions = [];
-                localStorage.removeItem('mcqQuestions');
-                renderApp(); // Re-render the app after clearing
-            }
-        };
+    const pushQuestionToCloud = (question) => {
+        let userId = getUserId();
 
-        const exportQuestions = () => {
-            const dataStr = JSON.stringify(questions, null, 2);
-            const blob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'mcq_questions.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        };
-
-        const importQuestions = async (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    try {
-                        const importedData = JSON.parse(e.target.result);
-                        // Basic validation for imported data structure
-                        if (Array.isArray(importedData) && importedData.every(q => q.id && q.type && q.questionText)) {
-                            const existingIds = new Set(questions.map(q => q.id));
-                            const newQuestions = importedData.filter(q => !existingIds.has(q.id));
-                            questions = [...questions, ...newQuestions];
-                            saveQuestions();
-                            await showMessage('Questions imported successfully!');
-                            renderApp();
-                        } else {
-                            await showMessage('Invalid JSON file format. Please ensure it contains an array of question objects.');
-                        }
-                    } catch (error) {
-                        console.error('Error parsing JSON:', error);
-                        await showMessage('Error importing questions. Please ensure it is a valid JSON file.');
+        fetch("https://epic-monarch-57.hasura.app/api/rest/json_bin",
+            {
+                method: "POST",
+                body: JSON.stringify({
+                    "object": {
+                        "user": userId,
+                        "question": question.questionText + "_" + uuidv4(),
+                        "value": question
                     }
-                };
-                reader.readAsText(file);
+                })
             }
-        };
+        )
+    }
 
-        // --- Components Rendering ---
+    // --- Data Management Functions ---
+    const addQuestion = (newQuestion) => {
+        const id = uuidv4()
+        pushQuestionToCloud(newQuestion)
+        questions.push({...newQuestion, id: id});
+        saveQuestions();
+        renderApp(); // Re-render the app after adding
+    };
 
-        // Helper to show/hide error messages
-        const toggleErrorMessage = (elementId, message, show) => {
-            const errorElement = document.getElementById(elementId);
-            if (errorElement) {
-                errorElement.textContent = message;
-                errorElement.style.display = show ? 'block' : 'none';
-            }
-        };
+    const clearAllQuestions = async () => {
+        const confirmed = await showMessage('Are you sure you want to clear all questions? This action cannot be undone.', 'confirm');
+        if (confirmed) {
+            questions = [];
+            localStorage.removeItem('mcqQuestions');
+            renderApp(); // Re-render the app after clearing
+        }
+    };
 
-        // Question Form Component
-        const renderQuestionForm = () => {
-            const formContainer = document.createElement('div');
-            formContainer.className = 'p-6 bg-white rounded-lg shadow-md max-w-2xl mx-auto my-8';
-            formContainer.innerHTML = `
+    const exportQuestions = () => {
+        const dataStr = JSON.stringify(questions, null, 2);
+        const blob = new Blob([dataStr], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'mcq_questions.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const importQuestions = async (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    // Basic validation for imported data structure
+                    if (Array.isArray(importedData) && importedData.every(q => q.id && q.type && q.questionText)) {
+                        const existingIds = new Set(questions.map(q => q.id));
+                        const newQuestions = importedData.filter(q => !existingIds.has(q.id));
+                        questions = [...questions, ...newQuestions];
+                        saveQuestions();
+                        await showMessage('Questions imported successfully!');
+                        renderApp();
+                    } else {
+                        await showMessage('Invalid JSON file format. Please ensure it contains an array of question objects.');
+                    }
+                } catch (error) {
+                    console.error('Error parsing JSON:', error);
+                    await showMessage('Error importing questions. Please ensure it is a valid JSON file.');
+                }
+            };
+            reader.readAsText(file);
+        }
+    };
+
+    // --- Components Rendering ---
+
+    // Helper to show/hide error messages
+    const toggleErrorMessage = (elementId, message, show) => {
+        const errorElement = document.getElementById(elementId);
+        if (errorElement) {
+            errorElement.textContent = message;
+            errorElement.style.display = show ? 'block' : 'none';
+        }
+    };
+
+    // Question Form Component
+    const renderQuestionForm = () => {
+        const formContainer = document.createElement('div');
+        formContainer.className = 'p-6 bg-white rounded-lg shadow-md max-w-2xl mx-auto my-8';
+        formContainer.innerHTML = `
                 <h2 class="text-2xl font-bold mb-6 text-gray-800 text-center">Add New Question</h2>
                 <form id="question-form" class="space-y-6">
                     <div>
@@ -252,42 +290,42 @@
                 </form>
             `;
 
-            const form = formContainer.querySelector('#question-form');
-            const typeSelect = formContainer.querySelector('#type');
-            const questionTextarea = formContainer.querySelector('#questionText');
-            const optionsContainer = formContainer.querySelector('#options-container');
-            const matchesContainer = formContainer.querySelector('#matches-container');
-            const optionFieldsWrapper = formContainer.querySelector('#option-fields-wrapper');
-            const matchFieldsWrapper = formContainer.querySelector('#match-fields-wrapper');
-            const addOptionBtn = formContainer.querySelector('#add-option-btn');
-            const addMatchBtn = formContainer.querySelector('#add-match-btn');
-            const backToListBtn = formContainer.querySelector('#back-to-list-btn');
+        const form = formContainer.querySelector('#question-form');
+        const typeSelect = formContainer.querySelector('#type');
+        const questionTextarea = formContainer.querySelector('#questionText');
+        const optionsContainer = formContainer.querySelector('#options-container');
+        const matchesContainer = formContainer.querySelector('#matches-container');
+        const optionFieldsWrapper = formContainer.querySelector('#option-fields-wrapper');
+        const matchFieldsWrapper = formContainer.querySelector('#match-fields-wrapper');
+        const addOptionBtn = formContainer.querySelector('#add-option-btn');
+        const addMatchBtn = formContainer.querySelector('#add-match-btn');
+        const backToListBtn = formContainer.querySelector('#back-to-list-btn');
 
-            // Initial error state (hidden)
-            toggleErrorMessage('questionText-error', '', false);
-            toggleErrorMessage('options-error', '', false);
-            toggleErrorMessage('correct-answer-error', '', false);
-            toggleErrorMessage('matches-error', '', false);
-            toggleErrorMessage('match-completeness-error', '', false);
+        // Initial error state (hidden)
+        toggleErrorMessage('questionText-error', '', false);
+        toggleErrorMessage('options-error', '', false);
+        toggleErrorMessage('correct-answer-error', '', false);
+        toggleErrorMessage('matches-error', '', false);
+        toggleErrorMessage('match-completeness-error', '', false);
 
 
-            const updateFormVisibility = () => {
-                const selectedType = typeSelect.value;
-                optionsContainer.classList.add('hidden');
-                matchesContainer.classList.add('hidden');
+        const updateFormVisibility = () => {
+            const selectedType = typeSelect.value;
+            optionsContainer.classList.add('hidden');
+            matchesContainer.classList.add('hidden');
 
-                if (selectedType === 'multiple-choice' || selectedType === 'multi-select') {
-                    optionsContainer.classList.remove('hidden');
-                } else if (selectedType === 'match-the-following') {
-                    matchesContainer.classList.remove('hidden');
-                }
-            };
+            if (selectedType === 'multiple-choice' || selectedType === 'multi-select') {
+                optionsContainer.classList.remove('hidden');
+            } else if (selectedType === 'match-the-following') {
+                matchesContainer.classList.remove('hidden');
+            }
+        };
 
-            const addOptionField = () => {
-                const optionId = uuidv4();
-                const optionDiv = document.createElement('div');
-                optionDiv.className = 'flex items-center space-x-2';
-                optionDiv.innerHTML = `
+        const addOptionField = () => {
+            const optionId = uuidv4();
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'flex items-center space-x-2';
+            optionDiv.innerHTML = `
                     <input type="text" data-id="${optionId}" class="flex-grow shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Option ${optionFieldsWrapper.children.length + 1}" />
                     ${typeSelect.value === 'multiple-choice' ? `
                         <input type="radio" name="correctAnswer" value="${optionId}" class="form-radio h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500" title="Mark as correct" />
@@ -301,26 +339,26 @@
                         </svg>
                     </button>
                 `;
-                optionDiv.querySelector('button').onclick = () => {
-                    optionDiv.remove();
-                    // Re-evaluate options validity after removal
-                    validateForm(false); // Don't submit, just validate
-                };
-                optionFieldsWrapper.appendChild(optionDiv);
-
-                // Add input event listeners for validation feedback
-                optionDiv.querySelector('input[type="text"]').oninput = () => validateForm(false);
-                if (typeSelect.value === 'multiple-choice') {
-                    optionDiv.querySelector('input[type="radio"]').onchange = () => validateForm(false);
-                } else if (typeSelect.value === 'multi-select') {
-                    optionDiv.querySelector('input[type="checkbox"]').onchange = () => validateForm(false);
-                }
+            optionDiv.querySelector('button').onclick = () => {
+                optionDiv.remove();
+                // Re-evaluate options validity after removal
+                validateForm(false); // Don't submit, just validate
             };
+            optionFieldsWrapper.appendChild(optionDiv);
 
-            const addMatchField = () => {
-                const matchDiv = document.createElement('div');
-                matchDiv.className = 'flex items-center space-x-2';
-                matchDiv.innerHTML = `
+            // Add input event listeners for validation feedback
+            optionDiv.querySelector('input[type="text"]').oninput = () => validateForm(false);
+            if (typeSelect.value === 'multiple-choice') {
+                optionDiv.querySelector('input[type="radio"]').onchange = () => validateForm(false);
+            } else if (typeSelect.value === 'multi-select') {
+                optionDiv.querySelector('input[type="checkbox"]').onchange = () => validateForm(false);
+            }
+        };
+
+        const addMatchField = () => {
+            const matchDiv = document.createElement('div');
+            matchDiv.className = 'flex items-center space-x-2';
+            matchDiv.innerHTML = `
                     <input type="text" data-type="left" class="flex-1 shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Left item ${matchFieldsWrapper.children.length + 1}" />
                     <span class="text-gray-600">-</span>
                     <input type="text" data-type="right" class="flex-1 shadow-sm sm:text-sm border-gray-300 rounded-md p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Right item ${matchFieldsWrapper.children.length + 1}" />
@@ -330,199 +368,201 @@
                         </svg>
                     </button>
                 `;
-                matchDiv.querySelector('button').onclick = () => {
-                    matchDiv.remove();
-                    validateForm(false); // Don't submit, just validate
-                };
-                matchDiv.querySelector('input[data-type="left"]').oninput = () => validateForm(false);
-                matchDiv.querySelector('input[data-type="right"]').oninput = () => validateForm(false);
-                matchFieldsWrapper.appendChild(matchDiv);
+            matchDiv.querySelector('button').onclick = () => {
+                matchDiv.remove();
+                validateForm(false); // Don't submit, just validate
             };
-
-            // Initial fields
-            addOptionField();
-            addOptionField();
-            addMatchField();
-            addMatchField();
-
-            typeSelect.onchange = () => {
-                updateFormVisibility();
-                // Clear and re-add initial options/matches to reset radio/checkbox names
-                optionFieldsWrapper.innerHTML = '';
-                matchFieldsWrapper.innerHTML = '';
-                addOptionField();
-                addOptionField();
-                addMatchField();
-                addMatchField();
-                validateForm(false); // Re-validate on type change
-            };
-            updateFormVisibility(); // Set initial visibility
-
-            addOptionBtn.onclick = () => addOptionField();
-            addMatchBtn.onclick = () => addMatchField();
-            backToListBtn.onclick = () => { window.location.hash = '#list'; };
-
-            // Input event listener for question text
-            questionTextarea.oninput = () => toggleErrorMessage('questionText-error', '', !questionTextarea.value.trim());
-
-
-            const validateForm = (isSubmitAttempt = true) => {
-                let isValid = true;
-
-                // Validate Question Text
-                if (!questionTextarea.value.trim()) {
-                    toggleErrorMessage('questionText-error', 'Question text is required.', true);
-                    isValid = false;
-                } else {
-                    toggleErrorMessage('questionText-error', '', false);
-                }
-
-                const type = typeSelect.value;
-
-                if (type === 'multiple-choice' || type === 'multi-select') {
-                    const options = [];
-                    optionFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((optionDiv) => {
-                        const input = optionDiv.querySelector('input[type="text"]');
-                        if (input && input.value.trim() !== '') {
-                            options.push({ id: input.dataset.id, text: input.value.trim() });
-                        }
-                    });
-
-                    if (options.length === 0) {
-                        toggleErrorMessage('options-error', 'Please add at least one option.', true);
-                        isValid = false;
-                    } else {
-                        toggleErrorMessage('options-error', '', false);
-                    }
-
-                    if (type === 'multiple-choice') {
-                        const correctAnswerRadio = form.querySelector('input[name="correctAnswer"]:checked');
-                        if (!correctAnswerRadio) {
-                            toggleErrorMessage('correct-answer-error', 'Please select a correct answer.', true);
-                            isValid = false;
-                        } else {
-                            toggleErrorMessage('correct-answer-error', '', false);
-                        }
-                    } else if (type === 'multi-select') {
-                        const correctAnswersCheckboxes = Array.from(form.querySelectorAll('input[name="correctAnswers"]:checked'));
-                        if (correctAnswersCheckboxes.length === 0) {
-                            toggleErrorMessage('correct-answer-error', 'Please select at least one correct answer.', true);
-                            isValid = false;
-                        } else {
-                            toggleErrorMessage('correct-answer-error', '', false);
-                        }
-                    }
-                } else if (type === 'match-the-following') {
-                    const matches = [];
-                    let allMatchesValid = true;
-                    matchFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((matchDiv) => {
-                        const leftInput = matchDiv.querySelector('input[data-type="left"]');
-                        const rightInput = matchDiv.querySelector('input[data-type="right"]');
-                        if (leftInput && rightInput) {
-                            const leftVal = leftInput.value.trim();
-                            const rightVal = rightInput.value.trim();
-                            if (leftVal !== '' && rightVal !== '') {
-                                matches.push({ left: leftVal, right: rightVal });
-                            } else if (leftVal !== '' || rightVal !== '') {
-                                allMatchesValid = false; // Partial input
-                            }
-                        }
-                    });
-
-                    if (matches.length === 0) {
-                        toggleErrorMessage('matches-error', 'Please add at least one match pair.', true);
-                        isValid = false;
-                    } else {
-                        toggleErrorMessage('matches-error', '', false);
-                    }
-
-                    if (!allMatchesValid) {
-                        toggleErrorMessage('match-completeness-error', 'Please ensure all match pairs have both left and right items filled.', true);
-                        isValid = false;
-                    } else {
-                        toggleErrorMessage('match-completeness-error', '', false);
-                    }
-                }
-
-                return isValid;
-            };
-
-            form.onsubmit = async (event) => {
-                event.preventDefault();
-
-                if (!validateForm(true)) {
-                    await showMessage('Please fix the errors in the form before submitting.');
-                    return;
-                }
-
-                const questionText = questionTextarea.value.trim();
-                const imageText = form.querySelector('#imageText').value.trim();
-                const type = typeSelect.value;
-
-                const newQuestion = {
-                    type,
-                    questionText,
-                    imageText: imageText || undefined // Store only if not empty
-                };
-
-                if (type === 'multiple-choice') {
-                    const options = [];
-                    optionFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((optionDiv) => {
-                        const input = optionDiv.querySelector('input[type="text"]');
-                        if (input && input.value.trim() !== '') {
-                            options.push({ id: input.dataset.id, text: input.value.trim() });
-                        }
-                    });
-                    const correctAnswerRadio = form.querySelector('input[name="correctAnswer"]:checked');
-                    newQuestion.options = options;
-                    newQuestion.correctAnswer = correctAnswerRadio.value;
-                } else if (type === 'multi-select') {
-                    const options = [];
-                    optionFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((optionDiv) => {
-                        const input = optionDiv.querySelector('input[type="text"]');
-                        if (input && input.value.trim() !== '') {
-                            options.push({ id: input.dataset.id, text: input.value.trim() });
-                        }
-                    });
-                    const correctAnswersCheckboxes = Array.from(form.querySelectorAll('input[name="correctAnswers"]:checked')).map(cb => cb.value);
-                    newQuestion.options = options;
-                    newQuestion.correctAnswers = correctAnswersCheckboxes;
-                } else if (type === 'match-the-following') {
-                    const matches = [];
-                    matchFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((matchDiv) => {
-                        const leftInput = matchDiv.querySelector('input[data-type="left"]');
-                        const rightInput = matchDiv.querySelector('input[data-type="right"]');
-                        if (leftInput && rightInput && leftInput.value.trim() !== '' && rightInput.value.trim() !== '') {
-                            matches.push({ left: leftInput.value.trim(), right: rightInput.value.trim() });
-                        }
-                    });
-                    newQuestion.matches = matches;
-                }
-
-                addQuestion(newQuestion);
-                form.reset();
-                optionFieldsWrapper.innerHTML = ''; // Clear options
-                matchFieldsWrapper.innerHTML = ''; // Clear matches
-                addOptionField(); // Add initial options back
-                addOptionField();
-                addMatchField();
-                addMatchField();
-                toggleErrorMessage('questionText-error', '', false); // Clear errors on reset
-                toggleErrorMessage('options-error', '', false);
-                toggleErrorMessage('correct-answer-error', '', false);
-                toggleErrorMessage('matches-error', '', false);
-                toggleErrorMessage('match-completeness-error', '', false);
-                window.location.hash = '#list'; // Navigate back to list
-            };
-
-            return formContainer;
+            matchDiv.querySelector('input[data-type="left"]').oninput = () => validateForm(false);
+            matchDiv.querySelector('input[data-type="right"]').oninput = () => validateForm(false);
+            matchFieldsWrapper.appendChild(matchDiv);
         };
 
-        // Question List Component
-        const renderQuestionList = () => {
-            const listContainer = document.createElement('div');
-            listContainer.className = 'p-6 bg-white rounded-lg shadow-md max-w-4xl mx-auto my-8';
-            listContainer.innerHTML = `
+        // Initial fields
+        addOptionField();
+        addOptionField();
+        addMatchField();
+        addMatchField();
+
+        typeSelect.onchange = () => {
+            updateFormVisibility();
+            // Clear and re-add initial options/matches to reset radio/checkbox names
+            optionFieldsWrapper.innerHTML = '';
+            matchFieldsWrapper.innerHTML = '';
+            addOptionField();
+            addOptionField();
+            addMatchField();
+            addMatchField();
+            validateForm(false); // Re-validate on type change
+        };
+        updateFormVisibility(); // Set initial visibility
+
+        addOptionBtn.onclick = () => addOptionField();
+        addMatchBtn.onclick = () => addMatchField();
+        backToListBtn.onclick = () => {
+            window.location.hash = '#list';
+        };
+
+        // Input event listener for question text
+        questionTextarea.oninput = () => toggleErrorMessage('questionText-error', '', !questionTextarea.value.trim());
+
+
+        const validateForm = (isSubmitAttempt = true) => {
+            let isValid = true;
+
+            // Validate Question Text
+            if (!questionTextarea.value.trim()) {
+                toggleErrorMessage('questionText-error', 'Question text is required.', true);
+                isValid = false;
+            } else {
+                toggleErrorMessage('questionText-error', '', false);
+            }
+
+            const type = typeSelect.value;
+
+            if (type === 'multiple-choice' || type === 'multi-select') {
+                const options = [];
+                optionFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((optionDiv) => {
+                    const input = optionDiv.querySelector('input[type="text"]');
+                    if (input && input.value.trim() !== '') {
+                        options.push({id: input.dataset.id, text: input.value.trim()});
+                    }
+                });
+
+                if (options.length === 0) {
+                    toggleErrorMessage('options-error', 'Please add at least one option.', true);
+                    isValid = false;
+                } else {
+                    toggleErrorMessage('options-error', '', false);
+                }
+
+                if (type === 'multiple-choice') {
+                    const correctAnswerRadio = form.querySelector('input[name="correctAnswer"]:checked');
+                    if (!correctAnswerRadio) {
+                        toggleErrorMessage('correct-answer-error', 'Please select a correct answer.', true);
+                        isValid = false;
+                    } else {
+                        toggleErrorMessage('correct-answer-error', '', false);
+                    }
+                } else if (type === 'multi-select') {
+                    const correctAnswersCheckboxes = Array.from(form.querySelectorAll('input[name="correctAnswers"]:checked'));
+                    if (correctAnswersCheckboxes.length === 0) {
+                        toggleErrorMessage('correct-answer-error', 'Please select at least one correct answer.', true);
+                        isValid = false;
+                    } else {
+                        toggleErrorMessage('correct-answer-error', '', false);
+                    }
+                }
+            } else if (type === 'match-the-following') {
+                const matches = [];
+                let allMatchesValid = true;
+                matchFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((matchDiv) => {
+                    const leftInput = matchDiv.querySelector('input[data-type="left"]');
+                    const rightInput = matchDiv.querySelector('input[data-type="right"]');
+                    if (leftInput && rightInput) {
+                        const leftVal = leftInput.value.trim();
+                        const rightVal = rightInput.value.trim();
+                        if (leftVal !== '' && rightVal !== '') {
+                            matches.push({left: leftVal, right: rightVal});
+                        } else if (leftVal !== '' || rightVal !== '') {
+                            allMatchesValid = false; // Partial input
+                        }
+                    }
+                });
+
+                if (matches.length === 0) {
+                    toggleErrorMessage('matches-error', 'Please add at least one match pair.', true);
+                    isValid = false;
+                } else {
+                    toggleErrorMessage('matches-error', '', false);
+                }
+
+                if (!allMatchesValid) {
+                    toggleErrorMessage('match-completeness-error', 'Please ensure all match pairs have both left and right items filled.', true);
+                    isValid = false;
+                } else {
+                    toggleErrorMessage('match-completeness-error', '', false);
+                }
+            }
+
+            return isValid;
+        };
+
+        form.onsubmit = async (event) => {
+            event.preventDefault();
+
+            if (!validateForm(true)) {
+                await showMessage('Please fix the errors in the form before submitting.');
+                return;
+            }
+
+            const questionText = questionTextarea.value.trim();
+            const imageText = form.querySelector('#imageText').value.trim();
+            const type = typeSelect.value;
+
+            const newQuestion = {
+                type,
+                questionText,
+                imageText: imageText || undefined // Store only if not empty
+            };
+
+            if (type === 'multiple-choice') {
+                const options = [];
+                optionFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((optionDiv) => {
+                    const input = optionDiv.querySelector('input[type="text"]');
+                    if (input && input.value.trim() !== '') {
+                        options.push({id: input.dataset.id, text: input.value.trim()});
+                    }
+                });
+                const correctAnswerRadio = form.querySelector('input[name="correctAnswer"]:checked');
+                newQuestion.options = options;
+                newQuestion.correctAnswer = correctAnswerRadio.value;
+            } else if (type === 'multi-select') {
+                const options = [];
+                optionFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((optionDiv) => {
+                    const input = optionDiv.querySelector('input[type="text"]');
+                    if (input && input.value.trim() !== '') {
+                        options.push({id: input.dataset.id, text: input.value.trim()});
+                    }
+                });
+                const correctAnswersCheckboxes = Array.from(form.querySelectorAll('input[name="correctAnswers"]:checked')).map(cb => cb.value);
+                newQuestion.options = options;
+                newQuestion.correctAnswers = correctAnswersCheckboxes;
+            } else if (type === 'match-the-following') {
+                const matches = [];
+                matchFieldsWrapper.querySelectorAll('.flex.items-center.space-x-2').forEach((matchDiv) => {
+                    const leftInput = matchDiv.querySelector('input[data-type="left"]');
+                    const rightInput = matchDiv.querySelector('input[data-type="right"]');
+                    if (leftInput && rightInput && leftInput.value.trim() !== '' && rightInput.value.trim() !== '') {
+                        matches.push({left: leftInput.value.trim(), right: rightInput.value.trim()});
+                    }
+                });
+                newQuestion.matches = matches;
+            }
+
+            addQuestion(newQuestion);
+            form.reset();
+            optionFieldsWrapper.innerHTML = ''; // Clear options
+            matchFieldsWrapper.innerHTML = ''; // Clear matches
+            addOptionField(); // Add initial options back
+            addOptionField();
+            addMatchField();
+            addMatchField();
+            toggleErrorMessage('questionText-error', '', false); // Clear errors on reset
+            toggleErrorMessage('options-error', '', false);
+            toggleErrorMessage('correct-answer-error', '', false);
+            toggleErrorMessage('matches-error', '', false);
+            toggleErrorMessage('match-completeness-error', '', false);
+            window.location.hash = '#list'; // Navigate back to list
+        };
+
+        return formContainer;
+    };
+
+    // Question List Component
+    const renderQuestionList = () => {
+        const listContainer = document.createElement('div');
+        listContainer.className = 'p-6 bg-white rounded-lg shadow-md max-w-4xl mx-auto my-8';
+        listContainer.innerHTML = `
                 <h2 class="text-2xl font-bold mb-6 text-gray-800 text-center">Your Questions</h2>
 
                 <div class="flex justify-center flex-wrap gap-4 mb-8">
@@ -551,161 +591,163 @@
                 </div>
             `;
 
-            listContainer.querySelector('#add-question-btn').onclick = () => { window.location.hash = '#add'; };
-            listContainer.querySelector('#start-test-btn').onclick = () => {
-                if (questions.length > 0) {
-                    window.location.hash = '#test';
-                }
-            };
-            listContainer.querySelector('#export-questions-btn').onclick = () => exportQuestions();
-            listContainer.querySelector('#import-questions-input').onchange = (event) => importQuestions(event);
-            listContainer.querySelector('#clear-all-btn').onclick = () => clearAllQuestions();
-
-            const questionListDisplay = listContainer.querySelector('#question-list-display');
+        listContainer.querySelector('#add-question-btn').onclick = () => {
+            window.location.hash = '#add';
+        };
+        listContainer.querySelector('#start-test-btn').onclick = () => {
             if (questions.length > 0) {
-                questions.forEach((q, index) => {
-                    const questionDiv = document.createElement('div');
-                    questionDiv.className = 'bg-gray-50 p-4 rounded-md shadow-sm border border-gray-200';
-                    let contentHtml = `
+                window.location.hash = '#test';
+            }
+        };
+        listContainer.querySelector('#export-questions-btn').onclick = () => exportQuestions();
+        listContainer.querySelector('#import-questions-input').onchange = (event) => importQuestions(event);
+        listContainer.querySelector('#clear-all-btn').onclick = () => clearAllQuestions();
+
+        const questionListDisplay = listContainer.querySelector('#question-list-display');
+        if (questions.length > 0) {
+            questions.forEach((q, index) => {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'bg-gray-50 p-4 rounded-md shadow-sm border border-gray-200';
+                let contentHtml = `
                         <p class="text-sm font-semibold text-gray-700 mb-1">Question ${index + 1} (Type: ${q.type.replace(/-/g, ' ').replace(/\b\w/g, char => char.toUpperCase())})</p>
                         <p class="text-md font-medium text-gray-900 mb-2">${q.questionText}</p>
                         ${q.imageText ? `<p class="text-sm text-gray-500 italic mb-2">Image/Text: ${q.imageText}</p>` : ''}
                     `;
 
-                    if (q.type === 'multiple-choice') {
-                        contentHtml += `<ul class="list-disc list-inside text-sm text-gray-700">`;
-                        q.options.forEach(opt => {
-                            contentHtml += `<li class="${opt.id === q.correctAnswer ? 'font-bold text-green-700' : ''}">${opt.text} ${opt.id === q.correctAnswer ? '(Correct)' : ''}</li>`;
-                        });
-                        contentHtml += `</ul>`;
-                    } else if (q.type === 'multi-select') {
-                        contentHtml += `<ul class="list-disc list-inside text-sm text-gray-700">`;
-                        q.options.forEach(opt => {
-                            contentHtml += `<li class="${q.correctAnswers.includes(opt.id) ? 'font-bold text-green-700' : ''}">${opt.text} ${q.correctAnswers.includes(opt.id) ? '(Correct)' : ''}</li>`;
-                        });
-                        contentHtml += `</ul>`;
-                    } else if (q.type === 'match-the-following') {
-                        contentHtml += `<div class="grid grid-cols-2 gap-2 text-sm text-gray-700">`;
-                        q.matches.forEach((match, i) => {
-                            contentHtml += `
+                if (q.type === 'multiple-choice') {
+                    contentHtml += `<ul class="list-disc list-inside text-sm text-gray-700">`;
+                    q.options.forEach(opt => {
+                        contentHtml += `<li class="${opt.id === q.correctAnswer ? 'font-bold text-green-700' : ''}">${opt.text} ${opt.id === q.correctAnswer ? '(Correct)' : ''}</li>`;
+                    });
+                    contentHtml += `</ul>`;
+                } else if (q.type === 'multi-select') {
+                    contentHtml += `<ul class="list-disc list-inside text-sm text-gray-700">`;
+                    q.options.forEach(opt => {
+                        contentHtml += `<li class="${q.correctAnswers.includes(opt.id) ? 'font-bold text-green-700' : ''}">${opt.text} ${q.correctAnswers.includes(opt.id) ? '(Correct)' : ''}</li>`;
+                    });
+                    contentHtml += `</ul>`;
+                } else if (q.type === 'match-the-following') {
+                    contentHtml += `<div class="grid grid-cols-2 gap-2 text-sm text-gray-700">`;
+                    q.matches.forEach((match, i) => {
+                        contentHtml += `
                                 <div class="flex justify-between">
                                     <span class="font-medium">${match.left}</span>
                                     <span>-</span>
                                     <span>${match.right}</span>
                                 </div>
                             `;
-                        });
-                        contentHtml += `</div>`;
-                    }
-                    questionDiv.innerHTML = contentHtml;
-                    questionListDisplay.appendChild(questionDiv);
-                });
-            }
+                    });
+                    contentHtml += `</div>`;
+                }
+                questionDiv.innerHTML = contentHtml;
+                questionListDisplay.appendChild(questionDiv);
+            });
+        }
 
-            return listContainer;
+        return listContainer;
+    };
+
+    // Test Screen Component
+    const renderTestScreen = () => {
+        const testScreenContainer = document.createElement('div');
+        testScreenContainer.className = 'p-6 bg-white rounded-lg shadow-md max-w-2xl mx-auto my-8';
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let showResults = false;
+
+        const initializeTest = () => {
+            shuffledQuestionsForTest = [...questions].sort(() => Math.random() - 0.5);
+            currentQuestionIndex = 0;
+            userAnswersForTest = {};
+            score = 0;
+            showResults = false;
+            renderTestContent();
         };
 
-        // Test Screen Component
-        const renderTestScreen = () => {
-            const testScreenContainer = document.createElement('div');
-            testScreenContainer.className = 'p-6 bg-white rounded-lg shadow-md max-w-2xl mx-auto my-8';
+        const handleAnswerChange = (questionId, answer) => {
+            userAnswersForTest[questionId] = answer;
+        };
 
-            let currentQuestionIndex = 0;
-            let score = 0;
-            let showResults = false;
+        const checkAnswer = (question, userAnswer) => {
+            if (!question) return false;
 
-            const initializeTest = () => {
-                shuffledQuestionsForTest = [...questions].sort(() => Math.random() - 0.5);
-                currentQuestionIndex = 0;
-                userAnswersForTest = {};
-                score = 0;
-                showResults = false;
+            if (question.type === 'multiple-choice') {
+                return userAnswer === question.correctAnswer;
+            } else if (question.type === 'multi-select') {
+                const userSelected = new Set(userAnswer || []);
+                const correctSelected = new Set(question.correctAnswers || []);
+                if (userSelected.size !== correctSelected.size) return false;
+                for (let item of userSelected) {
+                    if (!correctSelected.has(item)) return false;
+                }
+                return true;
+            } else if (question.type === 'match-the-following') {
+                if (!userAnswer) return false;
+                return question.matches.every(match => userAnswer[match.left] === match.right);
+            }
+            return false;
+        };
+
+        const handleNextQuestion = () => {
+            const currentQuestion = shuffledQuestionsForTest[currentQuestionIndex];
+            if (checkAnswer(currentQuestion, userAnswersForTest[currentQuestion.id])) {
+                score++;
+            }
+
+            if (currentQuestionIndex < shuffledQuestionsForTest.length - 1) {
+                currentQuestionIndex++;
                 renderTestContent();
-            };
+            } else {
+                showResults = true;
+                renderTestContent(); // End of test, show results
+            }
+        };
 
-            const handleAnswerChange = (questionId, answer) => {
-                userAnswersForTest[questionId] = answer;
-            };
+        const getOptionTextById = (question, optionId) => {
+            const option = question.options.find(opt => opt.id === optionId);
+            return option ? option.text : 'N/A';
+        };
 
-            const checkAnswer = (question, userAnswer) => {
-                if (!question) return false;
+        const renderQuestionContent = () => {
+            const currentQuestion = shuffledQuestionsForTest[currentQuestionIndex];
+            if (!currentQuestion) return '';
 
-                if (question.type === 'multiple-choice') {
-                    return userAnswer === question.correctAnswer;
-                } else if (question.type === 'multi-select') {
-                    const userSelected = new Set(userAnswer || []);
-                    const correctSelected = new Set(question.correctAnswers || []);
-                    if (userSelected.size !== correctSelected.size) return false;
-                    for (let item of userSelected) {
-                        if (!correctSelected.has(item)) return false;
-                    }
-                    return true;
-                } else if (question.type === 'match-the-following') {
-                    if (!userAnswer) return false;
-                    return question.matches.every(match => userAnswer[match.left] === match.right);
-                }
-                return false;
-            };
-
-            const handleNextQuestion = () => {
-                const currentQuestion = shuffledQuestionsForTest[currentQuestionIndex];
-                if (checkAnswer(currentQuestion, userAnswersForTest[currentQuestion.id])) {
-                    score++;
-                }
-
-                if (currentQuestionIndex < shuffledQuestionsForTest.length - 1) {
-                    currentQuestionIndex++;
-                    renderTestContent();
-                } else {
-                    showResults = true;
-                    renderTestContent(); // End of test, show results
-                }
-            };
-
-            const getOptionTextById = (question, optionId) => {
-                const option = question.options.find(opt => opt.id === optionId);
-                return option ? option.text : 'N/A';
-            };
-
-            const renderQuestionContent = () => {
-                const currentQuestion = shuffledQuestionsForTest[currentQuestionIndex];
-                if (!currentQuestion) return '';
-
-                let questionHtml = `
+            let questionHtml = `
                     <p class="text-lg font-semibold mb-4">${currentQuestion.questionText}</p>
                     ${currentQuestion.imageText ? `<p class="text-sm text-gray-500 italic mb-4">Image/Text: ${currentQuestion.imageText}</p>` : ''}
                 `;
 
-                if (currentQuestion.type === 'multiple-choice') {
-                    questionHtml += `<div class="space-y-2">`;
-                    currentQuestion.options.forEach(option => {
-                        const checked = userAnswersForTest[currentQuestion.id] === option.id ? 'checked' : '';
-                        questionHtml += `
+            if (currentQuestion.type === 'multiple-choice') {
+                questionHtml += `<div class="space-y-2">`;
+                currentQuestion.options.forEach(option => {
+                    const checked = userAnswersForTest[currentQuestion.id] === option.id ? 'checked' : '';
+                    questionHtml += `
                             <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 transition duration-150 ease-in-out">
                                 <input type="radio" name="question-${currentQuestion.id}" value="${option.id}" ${checked} class="form-radio h-5 w-5 text-indigo-600 border-gray-300 focus:ring-indigo-500" />
                                 <span class="ml-3 text-gray-800">${option.text}</span>
                             </label>
                         `;
-                    });
-                    questionHtml += `</div>`;
-                } else if (currentQuestion.type === 'multi-select') {
-                    questionHtml += `<div class="space-y-2">`;
-                    currentQuestion.options.forEach(option => {
-                        const checked = (userAnswersForTest[currentQuestion.id] || []).includes(option.id) ? 'checked' : '';
-                        questionHtml += `
+                });
+                questionHtml += `</div>`;
+            } else if (currentQuestion.type === 'multi-select') {
+                questionHtml += `<div class="space-y-2">`;
+                currentQuestion.options.forEach(option => {
+                    const checked = (userAnswersForTest[currentQuestion.id] || []).includes(option.id) ? 'checked' : '';
+                    questionHtml += `
                             <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 transition duration-150 ease-in-out">
                                 <input type="checkbox" name="question-${currentQuestion.id}" value="${option.id}" ${checked} class="form-checkbox h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
                                 <span class="ml-3 text-gray-800">${option.text}</span>
                             </label>
                         `;
-                    });
-                    questionHtml += `</div>`;
-                } else if (currentQuestion.type === 'match-the-following') {
-                    const rightOptions = currentQuestion.matches.map(match => match.right);
-                    // Shuffle right options for the test
-                    const shuffledRightOptions = [...rightOptions].sort(() => Math.random() - 0.5);
+                });
+                questionHtml += `</div>`;
+            } else if (currentQuestion.type === 'match-the-following') {
+                const rightOptions = currentQuestion.matches.map(match => match.right);
+                // Shuffle right options for the test
+                const shuffledRightOptions = [...rightOptions].sort(() => Math.random() - 0.5);
 
-                    questionHtml += `
+                questionHtml += `
                         <div class="grid grid-cols-2 gap-4">
                             <div class="col-span-1 space-y-3">
                                 <h4 class="font-medium text-gray-700">Left Column</h4>
@@ -726,77 +768,79 @@
                             </div>
                         </div>
                     `;
-                }
-                return questionHtml;
-            };
+            }
+            return questionHtml;
+        };
 
-            const renderTestContent = () => {
-                testScreenContainer.innerHTML = ''; // Clear previous content
+        const renderTestContent = () => {
+            testScreenContainer.innerHTML = ''; // Clear previous content
 
-                if (shuffledQuestionsForTest.length === 0) {
-                    testScreenContainer.className = 'p-6 bg-white rounded-lg shadow-md max-w-2xl mx-auto my-8 text-center';
-                    testScreenContainer.innerHTML = `
+            if (shuffledQuestionsForTest.length === 0) {
+                testScreenContainer.className = 'p-6 bg-white rounded-lg shadow-md max-w-2xl mx-auto my-8 text-center';
+                testScreenContainer.innerHTML = `
                         <p class="text-lg text-gray-600 mb-4">No questions available to start the test. Please add some questions first.</p>
                         <button id="test-back-to-list-btn" class="px-6 py-3 bg-gray-500 text-white font-semibold rounded-md shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-150 ease-in-out">
                             Back to List
                         </button>
                     `;
-                    testScreenContainer.querySelector('#test-back-to-list-btn').onclick = () => { window.location.hash = '#list'; };
-                    return;
-                }
+                testScreenContainer.querySelector('#test-back-to-list-btn').onclick = () => {
+                    window.location.hash = '#list';
+                };
+                return;
+            }
 
-                if (showResults) {
-                    testScreenContainer.className = 'p-6 bg-white rounded-lg shadow-md max-w-4xl mx-auto my-8'; // Wider for results
-                    let resultsHtml = `
+            if (showResults) {
+                testScreenContainer.className = 'p-6 bg-white rounded-lg shadow-md max-w-4xl mx-auto my-8'; // Wider for results
+                let resultsHtml = `
                         <h2 class="text-3xl font-bold mb-6 text-indigo-700 text-center">Test Results</h2>
                         <p class="text-xl text-gray-800 mb-8 text-center">You scored: <span class="font-bold text-green-600">${score}</span> out of <span class="font-bold">${shuffledQuestionsForTest.length}</span></p>
                         <div class="space-y-8">
                     `;
 
-                    shuffledQuestionsForTest.forEach((q, index) => {
-                        const userAnswer = userAnswersForTest[q.id];
-                        const isCorrect = checkAnswer(q, userAnswer);
-                        const resultClass = isCorrect ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
+                shuffledQuestionsForTest.forEach((q, index) => {
+                    const userAnswer = userAnswersForTest[q.id];
+                    const isCorrect = checkAnswer(q, userAnswer);
+                    const resultClass = isCorrect ? 'border-green-400 bg-green-50' : 'border-red-400 bg-red-50';
 
-                        resultsHtml += `
+                    resultsHtml += `
                             <div class="p-4 rounded-lg shadow-sm border-2 ${resultClass}">
                                 <h3 class="text-lg font-semibold text-gray-900 mb-2">Question ${index + 1}: ${q.questionText}</h3>
                                 ${q.imageText ? `<p class="text-sm text-gray-500 italic mb-2">Image/Text: ${q.imageText}</p>` : ''}
                         `;
 
-                        if (q.type === 'multiple-choice') {
-                            const userSelectedText = getOptionTextById(q, userAnswer);
-                            const correctText = getOptionTextById(q, q.correctAnswer);
-                            resultsHtml += `
+                    if (q.type === 'multiple-choice') {
+                        const userSelectedText = getOptionTextById(q, userAnswer);
+                        const correctText = getOptionTextById(q, q.correctAnswer);
+                        resultsHtml += `
                                 <p class="text-sm text-gray-700">Your Answer: <span class="${isCorrect ? 'correct-answer-text' : 'incorrect-answer-text'}">${userSelectedText || 'No answer'}</span></p>
                                 <p class="text-sm text-gray-700">Correct Answer: <span class="correct-answer-text">${correctText}</span></p>
                             `;
-                        } else if (q.type === 'multi-select') {
-                            const userSelectedTexts = (userAnswer || []).map(id => getOptionTextById(q, id)).join(', ');
-                            const correctTexts = (q.correctAnswers || []).map(id => getOptionTextById(q, id)).join(', ');
-                            resultsHtml += `
+                    } else if (q.type === 'multi-select') {
+                        const userSelectedTexts = (userAnswer || []).map(id => getOptionTextById(q, id)).join(', ');
+                        const correctTexts = (q.correctAnswers || []).map(id => getOptionTextById(q, id)).join(', ');
+                        resultsHtml += `
                                 <p class="text-sm text-gray-700">Your Answers: <span class="${isCorrect ? 'correct-answer-text' : 'incorrect-answer-text'}">${userSelectedTexts || 'No answer'}</span></p>
                                 <p class="text-sm text-gray-700">Correct Answers: <span class="correct-answer-text">${correctTexts}</span></p>
                             `;
-                        } else if (q.type === 'match-the-following') {
-                            resultsHtml += `<div class="grid grid-cols-2 gap-2 text-sm text-gray-700 mt-2">`;
-                            q.matches.forEach(match => {
-                                const userMatch = (userAnswer || {})[match.left] || 'No answer';
-                                const matchCorrect = userMatch === match.right;
-                                resultsHtml += `
+                    } else if (q.type === 'match-the-following') {
+                        resultsHtml += `<div class="grid grid-cols-2 gap-2 text-sm text-gray-700 mt-2">`;
+                        q.matches.forEach(match => {
+                            const userMatch = (userAnswer || {})[match.left] || 'No answer';
+                            const matchCorrect = userMatch === match.right;
+                            resultsHtml += `
                                     <div class="font-medium">${match.left}</div>
                                     <div>
                                         Your: <span class="${matchCorrect ? 'correct-answer-text' : 'incorrect-answer-text'}">${userMatch}</span><br>
                                         Correct: <span class="correct-answer-text">${match.right}</span>
                                     </div>
                                 `;
-                            });
-                            resultsHtml += `</div>`;
-                        }
-                        resultsHtml += `</div>`; // Close question div
-                    });
+                        });
+                        resultsHtml += `</div>`;
+                    }
+                    resultsHtml += `</div>`; // Close question div
+                });
 
-                    resultsHtml += `
+                resultsHtml += `
                         </div>
                         <div class="flex justify-center mt-8">
                             <button id="test-back-to-home-btn" class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-md shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out">
@@ -804,13 +848,15 @@
                             </button>
                         </div>
                     `;
-                    testScreenContainer.innerHTML = resultsHtml;
-                    testScreenContainer.querySelector('#test-back-to-home-btn').onclick = () => { window.location.hash = '#list'; };
-                    return;
-                }
+                testScreenContainer.innerHTML = resultsHtml;
+                testScreenContainer.querySelector('#test-back-to-home-btn').onclick = () => {
+                    window.location.hash = '#list';
+                };
+                return;
+            }
 
-                const currentQuestion = shuffledQuestionsForTest[currentQuestionIndex];
-                testScreenContainer.innerHTML = `
+            const currentQuestion = shuffledQuestionsForTest[currentQuestionIndex];
+            testScreenContainer.innerHTML = `
                     <h2 class="text-2xl font-bold mb-6 text-gray-800 text-center">
                         Question ${currentQuestionIndex + 1} of ${shuffledQuestionsForTest.length}
                     </h2>
@@ -827,76 +873,78 @@
                     </div>
                 `;
 
-                // Add event listeners for the current question type
-                if (currentQuestion.type === 'multiple-choice') {
-                    testScreenContainer.querySelectorAll(`input[name="question-${currentQuestion.id}"]`).forEach(radio => {
-                        radio.onchange = (e) => handleAnswerChange(currentQuestion.id, e.target.value);
-                    });
-                } else if (currentQuestion.type === 'multi-select') {
-                    testScreenContainer.querySelectorAll(`input[name="question-${currentQuestion.id}"]`).forEach(checkbox => {
-                        checkbox.onchange = (e) => {
-                            let currentSelections = userAnswersForTest[currentQuestion.id] || [];
-                            if (e.target.checked) {
-                                handleAnswerChange(currentQuestion.id, [...currentSelections, e.target.value]);
-                            } else {
-                                handleAnswerChange(currentQuestion.id, currentSelections.filter(id => id !== e.target.value));
-                            }
-                        };
-                    });
-                } else if (currentQuestion.type === 'match-the-following') {
-                    testScreenContainer.querySelectorAll('select[data-left-item]').forEach(selectElement => {
-                        selectElement.onchange = (e) => {
-                            const leftItem = e.target.dataset.leftItem;
-                            handleAnswerChange(currentQuestion.id, {
-                                ...(userAnswersForTest[currentQuestion.id] || {}),
-                                [leftItem]: e.target.value
-                            });
-                        };
-                    });
-                }
-
-                testScreenContainer.querySelector('#next-question-btn').onclick = handleNextQuestion;
-                testScreenContainer.querySelector('#exit-test-btn').onclick = () => { window.location.hash = '#list'; };
-            };
-
-            // Initial call to set up the test
-            initializeTest();
-            return testScreenContainer;
-        };
-
-
-        // --- Main Application Renderer ---
-        const renderApp = () => {
-            const appDiv = document.getElementById('app');
-            appDiv.innerHTML = ''; // Clear existing content
-
-            const hash = window.location.hash;
-
-            if (hash === '#add') {
-                appDiv.appendChild(renderQuestionForm());
-            } else if (hash === '#test') {
-                appDiv.appendChild(renderTestScreen());
-            } else { // Default to list if hash is empty or unrecognized
-                window.location.hash = '#list'; // Ensure hash is set for consistency
-                appDiv.appendChild(renderQuestionList());
+            // Add event listeners for the current question type
+            if (currentQuestion.type === 'multiple-choice') {
+                testScreenContainer.querySelectorAll(`input[name="question-${currentQuestion.id}"]`).forEach(radio => {
+                    radio.onchange = (e) => handleAnswerChange(currentQuestion.id, e.target.value);
+                });
+            } else if (currentQuestion.type === 'multi-select') {
+                testScreenContainer.querySelectorAll(`input[name="question-${currentQuestion.id}"]`).forEach(checkbox => {
+                    checkbox.onchange = (e) => {
+                        let currentSelections = userAnswersForTest[currentQuestion.id] || [];
+                        if (e.target.checked) {
+                            handleAnswerChange(currentQuestion.id, [...currentSelections, e.target.value]);
+                        } else {
+                            handleAnswerChange(currentQuestion.id, currentSelections.filter(id => id !== e.target.value));
+                        }
+                    };
+                });
+            } else if (currentQuestion.type === 'match-the-following') {
+                testScreenContainer.querySelectorAll('select[data-left-item]').forEach(selectElement => {
+                    selectElement.onchange = (e) => {
+                        const leftItem = e.target.dataset.leftItem;
+                        handleAnswerChange(currentQuestion.id, {
+                            ...(userAnswersForTest[currentQuestion.id] || {}),
+                            [leftItem]: e.target.value
+                        });
+                    };
+                });
             }
-        };
 
-        // Initial load and render
-        window.onload = () => {
-            loadQuestions();
-            // Set initial hash if none exists, otherwise render based on existing hash
-            if (!window.location.hash) {
+            testScreenContainer.querySelector('#next-question-btn').onclick = handleNextQuestion;
+            testScreenContainer.querySelector('#exit-test-btn').onclick = () => {
                 window.location.hash = '#list';
-            } else {
-                renderApp();
-            }
+            };
         };
 
-        // Listen for hash changes to re-render the app
-        window.onhashchange = () => {
+        // Initial call to set up the test
+        initializeTest();
+        return testScreenContainer;
+    };
+
+
+    // --- Main Application Renderer ---
+    const renderApp = () => {
+        const appDiv = document.getElementById('app');
+        appDiv.innerHTML = ''; // Clear existing content
+
+        const hash = window.location.hash;
+
+        if (hash === '#add') {
+            appDiv.appendChild(renderQuestionForm());
+        } else if (hash === '#test') {
+            appDiv.appendChild(renderTestScreen());
+        } else { // Default to list if hash is empty or unrecognized
+            window.location.hash = '#list'; // Ensure hash is set for consistency
+            appDiv.appendChild(renderQuestionList());
+        }
+    };
+
+    // Initial load and render
+    window.onload = () => {
+        loadQuestions()
+        // Set initial hash if none exists, otherwise render based on existing hash
+        if (!window.location.hash) {
+            window.location.hash = '#list';
+        } else {
             renderApp();
-        };
-    </script>
+        }
+    };
+
+    // Listen for hash changes to re-render the app
+    window.onhashchange = () => {
+        renderApp();
+    };
+</script>
 </body>
 </html>
