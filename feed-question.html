@@ -692,6 +692,10 @@
                     });
                     questionHtml += `</div>`;
                 } else if (currentQuestion.type === 'match-the-following') {
+                    const rightOptions = currentQuestion.matches.map(match => match.right);
+                    // Shuffle right options for the test
+                    const shuffledRightOptions = [...rightOptions].sort(() => Math.random() - 0.5);
+
                     questionHtml += `
                         <div class="grid grid-cols-2 gap-4">
                             <div class="col-span-1 space-y-3">
@@ -703,7 +707,12 @@
                             <div class="col-span-1 space-y-3">
                                 <h4 class="font-medium text-gray-700">Your Matches</h4>
                                 ${currentQuestion.matches.map(match => `
-                                    <input type="text" data-left-item="${match.left}" placeholder="Enter match" value="${(userAnswers[currentQuestion.id] && userAnswers[currentQuestion.id][match.left]) || ''}" class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" />
+                                    <select data-left-item="${match.left}" class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                                        <option value="">-- Select --</option>
+                                        ${shuffledRightOptions.map(option => `
+                                            <option value="${option}" ${((userAnswers[currentQuestion.id] || {})[match.left] === option) ? 'selected' : ''}>${option}</option>
+                                        `).join('')}
+                                    </select>
                                 `).join('')}
                             </div>
                         </div>
@@ -775,8 +784,8 @@
                         };
                     });
                 } else if (currentQuestion.type === 'match-the-following') {
-                    testScreenContainer.querySelectorAll('input[data-left-item]').forEach(input => {
-                        input.oninput = (e) => {
+                    testScreenContainer.querySelectorAll('select[data-left-item]').forEach(selectElement => {
+                        selectElement.onchange = (e) => {
                             const leftItem = e.target.dataset.leftItem;
                             handleAnswerChange(currentQuestion.id, {
                                 ...(userAnswers[currentQuestion.id] || {}),
