@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sortable List App</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Sortable.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* Custom styles for drag-and-drop feedback */
+        .sortable-ghost {
+            opacity: 0.4;
+            background-color: #cbd5e1; /* Tailwind gray-300 */
+        }
+        .sortable-chosen {
+            background-color: #dbeafe; /* Tailwind blue-100 */
+        }
+        .sortable-drag {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-2xl border border-gray-200">
+        <h1 class="text-4xl font-extrabold text-gray-900 mb-6 text-center">Sortable List Generator</h1>
+
+        <!-- Input and Generate Section -->
+        <div class="mb-6 flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4">
+            <input
+                type="number"
+                id="numItemsInput"
+                placeholder="Enter number of items (e.g., 10)"
+                class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 shadow-sm"
+                min="1"
+                value="10"
+            >
+            <button
+                id="generateListBtn"
+                class="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+                Generate List
+            </button>
+        </div>
+
+        <!-- List Container -->
+        <div id="listContainer" class="bg-gray-50 p-4 rounded-lg border border-gray-200 min-h-[200px] max-h-[400px] overflow-y-auto mb-6 shadow-inner">
+            <ul id="sortableList" class="space-y-2">
+                <!-- List items will be injected here -->
+            </ul>
+        </div>
+
+        <!-- Export Section -->
+        <div class="mb-6">
+            <button
+                id="exportIndicesBtn"
+                class="w-full px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+            >
+                Export Old and New Indices
+            </button>
+        </div>
+
+        <!-- Exported Results Display -->
+        <div id="resultsContainer" class="bg-gray-800 text-white p-4 rounded-lg font-mono text-sm overflow-x-auto shadow-lg hidden">
+            <h2 class="text-xl font-semibold mb-2 text-gray-200">Exported Indices:</h2>
+            <pre id="exportedResults" class="whitespace-pre-wrap break-words"></pre>
+        </div>
+
+        <!-- Message Box for alerts -->
+        <div id="messageBox" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden">
+            <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center">
+                <p id="messageText" class="text-lg font-medium text-gray-800 mb-4"></p>
+                <button id="closeMessageBox" class="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Get references to DOM elements
+        const numItemsInput = document.getElementById('numItemsInput');
+        const generateListBtn = document.getElementById('generateListBtn');
+        const sortableList = document.getElementById('sortableList');
+        const exportIndicesBtn = document.getElementById('exportIndicesBtn');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const exportedResults = document.getElementById('exportedResults');
+        const messageBox = document.getElementById('messageBox');
+        const messageText = document.getElementById('messageText');
+        const closeMessageBox = document.getElementById('closeMessageBox');
+
+        let sortableInstance; // To store the Sortable.js instance
+
+        /**
+         * Displays a custom message box instead of `alert()`.
+         * @param {string} message - The message to display.
+         */
+        function showMessageBox(message) {
+            messageText.textContent = message;
+            messageBox.classList.remove('hidden');
+        }
+
+        /**
+         * Hides the custom message box.
+         */
+        function hideMessageBox() {
+            messageBox.classList.add('hidden');
+        }
+
+        // Event listener for closing the message box
+        closeMessageBox.addEventListener('click', hideMessageBox);
+
+
+        /**
+         * Generates a list of items based on the input number.
+         * Each item stores its original index as a data attribute.
+         */
+        function generateList() {
+            const numItems = parseInt(numItemsInput.value, 10);
+
+            // Input validation
+            if (isNaN(numItems) || numItems <= 0) {
+                showMessageBox('Please enter a valid number greater than 0.');
+                return;
+            }
+            if (numItems > 500) { // Prevent excessively large lists for performance
+                showMessageBox('Please enter a number up to 500 for better performance.');
+                return;
+            }
+
+            // Clear existing list items
+            sortableList.innerHTML = '';
+
+            // Destroy previous Sortable instance if it exists
+            if (sortableInstance) {
+                sortableInstance.destroy();
+            }
+
+            // Create new list items
+            for (let i = 0; i < numItems; i++) {
+                const listItem = document.createElement('li');
+                listItem.textContent = `Item ${i + 1}`;
+                listItem.classList.add(
+                    'p-3', 'bg-white', 'rounded-md', 'shadow-sm', 'border', 'border-gray-200',
+                    'flex', 'items-center', 'justify-between', 'cursor-grab', 'hover:bg-gray-100',
+                    'transition', 'duration-150', 'ease-in-out'
+                );
+                // Store the original index as a data attribute
+                listItem.dataset.originalIndex = i;
+                sortableList.appendChild(listItem);
+            }
+
+            // Initialize Sortable.js on the list
+            sortableInstance = Sortable.create(sortableList, {
+                animation: 150, // ms, animation speed moving items when sorting, `0` — no animation
+                ghostClass: 'sortable-ghost', // Class name for the drop placeholder
+                chosenClass: 'sortable-chosen', // Class name for the chosen item
+                dragClass: 'sortable-drag', // Class name for the dragging item
+                handle: 'li', // Draggable handle (the entire li)
+                // onEnd: function (evt) {
+                //     // Optional: You can add logic here if you want to react immediately after a drag-drop
+                //     // console.log('Item moved:', evt.oldIndex, 'to', evt.newIndex);
+                // },
+            });
+
+            // Hide previous results
+            resultsContainer.classList.add('hidden');
+            exportedResults.textContent = '';
+        }
+
+        /**
+         * Exports the old and new indices of the list items.
+         */
+        function exportIndices() {
+            const items = Array.from(sortableList.children);
+            if (items.length === 0) {
+                showMessageBox('Please generate a list first.');
+                return;
+            }
+
+            const indices = items.map((item, newIndex) => {
+                const oldIndex = parseInt(item.dataset.originalIndex, 10);
+                return {
+                    oldIndex: oldIndex,
+                    newIndex: newIndex
+                };
+            });
+
+            exportedResults.textContent = JSON.stringify(indices, null, 2);
+            resultsContainer.classList.remove('hidden');
+        }
+
+        // Event Listeners
+        generateListBtn.addEventListener('click', generateList);
+        exportIndicesBtn.addEventListener('click', exportIndices);
+
+        // Initial list generation on page load
+        window.onload = () => {
+            generateList();
+        };
+    </script>
+</body>
+</html>
