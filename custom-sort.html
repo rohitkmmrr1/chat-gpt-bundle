@@ -36,38 +36,23 @@
 <!-- The body is now a flex container spanning the full screen height and width -->
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 h-screen w-screen flex overflow-hidden">
 
-    <!-- Left side: The main application content -->
-    <div class="w-1/2 flex items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-white p-8 rounded-xl shadow-2xl w-full h-full flex flex-col border border-gray-200">
-            <h1 class="text-4xl font-extrabold text-gray-900 mb-6 text-center">Sortable List Generator</h1>
+    <!-- Left side: Input/Control Area (30% width) -->
+    <div class="w-[30%] flex items-start justify-center p-4 overflow-y-auto">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full flex flex-col border border-gray-200">
+            <h1 class="text-4xl font-extrabold text-gray-900 mb-6 text-center">List Controls</h1>
 
-            <!-- Input and Generate Section -->
-            <div class="mb-6 flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4">
-                <input
-                    type="number"
-                    id="numItemsInput"
-                    placeholder="Enter number of items (e.g., 10)"
-                    class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 shadow-sm"
-                    min="1"
-                    value="10"
-                >
+            <!-- Button to open the generate list dialog -->
+            <div class="mb-4 w-full">
                 <button
-                    id="generateListBtn"
-                    class="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    id="openGenerateDialogBtn"
+                    class="w-full px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 >
-                    Generate List
+                    Generate New List
                 </button>
             </div>
 
-            <!-- List Container: flex-grow makes it take available vertical space, overflow-y-auto enables scrolling -->
-            <div id="listContainer" class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex-grow overflow-y-auto mb-6 shadow-inner">
-                <ul id="sortableList" class="space-y-2">
-                    <!-- List items will be injected here by JavaScript -->
-                </ul>
-            </div>
-
             <!-- Export Section -->
-            <div class="mb-6">
+            <div class="mb-4 w-full">
                 <button
                     id="exportIndicesBtn"
                     class="w-full px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
@@ -76,31 +61,144 @@
                 </button>
             </div>
 
-            <!-- Exported Results Display -->
-            <div id="resultsContainer" class="bg-gray-800 text-white p-4 rounded-lg font-mono text-sm overflow-x-auto shadow-lg hidden">
+            <!-- Button to open the import list dialog -->
+            <div class="mb-6 w-full">
+                <button
+                    id="openImportDialogBtn"
+                    class="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                >
+                    Import List
+                </button>
+            </div>
+
+            <!-- Move Item by Index Section -->
+            <div class="mt-6 w-full p-4 bg-gray-50 rounded-lg shadow-inner border border-gray-200">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4 text-center">Move Item by Index</h3>
+                <input
+                    type="text"
+                    id="itemToMoveInput"
+                    placeholder="Item text (e.g., 'Item 5')"
+                    class="w-full p-3 mb-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-800 shadow-sm"
+                >
+                <input
+                    type="number"
+                    id="targetIndexInput"
+                    placeholder="Target index (0-based)"
+                    class="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-800 shadow-sm"
+                    min="0"
+                >
+                <button
+                    id="moveItemBtn"
+                    class="w-full px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
+                >
+                    Move Item
+                </button>
+            </div>
+
+            <!-- Exported Results Display (kept on left for direct feedback) -->
+            <div id="resultsContainer" class="bg-gray-800 text-white p-4 rounded-lg font-mono text-sm overflow-x-auto shadow-lg mt-6 w-full hidden">
                 <h2 class="text-xl font-semibold mb-2 text-gray-200">Exported Indices:</h2>
                 <pre id="exportedResults" class="whitespace-pre-wrap break-words"></pre>
             </div>
 
-            <!-- Message Box for alerts -->
+            <!-- Message Box for alerts (retained for general messages) -->
             <div id="messageBox" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden">
                 <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full text-center">
                     <p id="messageText" class="text-lg font-medium text-gray-800 mb-4"></p>
                     <button id="closeMessageBox" class="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300">OK</button>
                 </div>
             </div>
+
+            <!-- Dialog for generating list input -->
+            <div id="generateDialogBox" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden">
+                <div class="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full text-center">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Generate List</h2>
+                    <input
+                        type="number"
+                        id="dialogNumItemsInput"
+                        placeholder="Enter number of items (e.g., 10)"
+                        class="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-800 shadow-sm"
+                        min="1"
+                        value="10"
+                    >
+                    <div class="flex justify-center space-x-4">
+                        <button
+                            id="generateFromDialogBtn"
+                            class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-300"
+                        >
+                            Generate
+                        </button>
+                        <button
+                            id="cancelGenerateDialogBtn"
+                            class="px-6 py-3 bg-gray-300 text-gray-800 font-semibold rounded-lg shadow-md hover:bg-gray-400 transition duration-300"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dialog for importing list input -->
+            <div id="importDialogBox" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden">
+                <div class="bg-white p-8 rounded-lg shadow-xl max-w-sm w-full text-center">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-4">Import List</h2>
+                    <textarea
+                        id="importTextArea"
+                        placeholder='Paste list items here (e.g., ["Item A", "Item B", "Item C"])'
+                        rows="6"
+                        class="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-gray-800 shadow-sm resize-y"
+                    ></textarea>
+                    <div class="flex justify-center space-x-4">
+                        <button
+                            id="importFromDialogBtn"
+                            class="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition duration-300"
+                        >
+                            Import
+                        </button>
+                        <button
+                            id="cancelImportDialogBtn"
+                            class="px-6 py-3 bg-gray-300 text-gray-800 font-semibold rounded-lg shadow-md hover:bg-gray-400 transition duration-300"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
-    <!-- Right side: Blank area -->
-    <div class="w-1/2 bg-gray-200 flex items-center justify-center border-l border-gray-300">
-        <p class="text-gray-400 text-2xl font-semibold">Right Side Area</p>
+    <!-- Right side: List Display Area (70% width) -->
+    <div class="w-[70%] bg-gray-200 flex items-center justify-center border-l border-gray-300 p-4">
+        <div class="bg-white p-8 rounded-xl shadow-2xl w-full h-full flex flex-col border border-gray-200">
+            <h2 class="text-4xl font-extrabold text-gray-900 mb-6 text-center">Sortable Items</h2>
+            <!-- List Container: flex-grow makes it take available vertical space, overflow-y-auto enables scrolling -->
+            <div id="listContainer" class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex-grow overflow-y-auto shadow-inner">
+                <ul id="sortableList" class="space-y-1"> <!-- space-y-1 for more compact list items -->
+                    <!-- List items will be injected here by JavaScript -->
+                </ul>
+            </div>
+        </div>
     </div>
 
     <script>
         // Get references to DOM elements
-        const numItemsInput = document.getElementById('numItemsInput');
-        const generateListBtn = document.getElementById('generateListBtn');
+        const openGenerateDialogBtn = document.getElementById('openGenerateDialogBtn');
+        const generateDialogBox = document.getElementById('generateDialogBox');
+        const dialogNumItemsInput = document.getElementById('dialogNumItemsInput');
+        const generateFromDialogBtn = document.getElementById('generateFromDialogBtn');
+        const cancelGenerateDialogBtn = document.getElementById('cancelGenerateDialogBtn');
+
+        const openImportDialogBtn = document.getElementById('openImportDialogBtn');
+        const importDialogBox = document.getElementById('importDialogBox');
+        const importTextArea = document.getElementById('importTextArea');
+        const importFromDialogBtn = document.getElementById('importFromDialogBtn');
+        const cancelImportDialogBtn = document.getElementById('cancelImportDialogBtn');
+
+        const itemToMoveInput = document.getElementById('itemToMoveInput'); // New
+        const targetIndexInput = document.getElementById('targetIndexInput'); // New
+        const moveItemBtn = document.getElementById('moveItemBtn'); // New
+
         const sortableList = document.getElementById('sortableList');
         const exportIndicesBtn = document.getElementById('exportIndicesBtn');
         const resultsContainer = document.getElementById('resultsContainer');
@@ -127,17 +225,76 @@
             messageBox.classList.add('hidden');
         }
 
-        // Event listener for closing the message box
+        /**
+         * Displays the generate list dialog box.
+         */
+        function showGenerateDialog() {
+            generateDialogBox.classList.remove('hidden');
+            dialogNumItemsInput.focus(); // Focus on the input when dialog opens
+        }
+
+        /**
+         * Hides the generate list dialog box.
+         */
+        function hideGenerateDialog() {
+            generateDialogBox.classList.add('hidden');
+        }
+
+        /**
+         * Displays the import list dialog box.
+         */
+        function showImportDialog() {
+            importDialogBox.classList.remove('hidden');
+            importTextArea.focus(); // Focus on the textarea when dialog opens
+        }
+
+        /**
+         * Hides the import list dialog box.
+         */
+        function hideImportDialog() {
+            importDialogBox.classList.add('hidden');
+        }
+
+        // Event listener for closing the general message box
         closeMessageBox.addEventListener('click', hideMessageBox);
+
+        // Event listeners for the generate list dialog
+        openGenerateDialogBtn.addEventListener('click', showGenerateDialog);
+        cancelGenerateDialogBtn.addEventListener('click', hideGenerateDialog);
+        generateFromDialogBtn.addEventListener('click', () => {
+            const numItems = parseInt(dialogNumItemsInput.value, 10);
+            generateList(numItems); // Call generateList with the dialog's input
+            hideGenerateDialog();
+        });
+
+        // Event listeners for the import list dialog
+        openImportDialogBtn.addEventListener('click', showImportDialog);
+        cancelImportDialogBtn.addEventListener('click', hideImportDialog);
+        importFromDialogBtn.addEventListener('click', () => {
+            const inputText = importTextArea.value.trim();
+            importList(inputText); // Call importList with the dialog's input
+            hideImportDialog();
+        });
+
+        // Event listener for the "Move Item" button
+        moveItemBtn.addEventListener('click', moveItemByIndex);
 
 
         /**
-         * Generates a list of items based on the input number.
-         * Each item stores its original index as a data attribute.
+         * Updates the 'Current Order' display for all list items.
          */
-        function generateList() {
-            const numItems = parseInt(numItemsInput.value, 10);
+        function updateCurrentOrders() {
+            Array.from(sortableList.children).forEach((item, newIndex) => {
+                item.querySelector('.current-order').textContent = newIndex;
+            });
+        }
 
+        /**
+         * Generates a list of items based on the provided number.
+         * Each item stores its original index as a data attribute.
+         * @param {number} numItems - The number of list items to generate.
+         */
+        function generateList(numItems) {
             // Input validation
             if (isNaN(numItems) || numItems <= 0) {
                 showMessageBox('Please enter a valid number greater than 0.');
@@ -160,7 +317,7 @@
             for (let i = 0; i < numItems; i++) {
                 const listItem = document.createElement('li');
                 listItem.classList.add(
-                    'p-3', 'bg-white', 'rounded-md', 'shadow-sm', 'border', 'border-gray-200',
+                    'py-1', 'px-2', 'bg-white', 'rounded-md', 'shadow-sm', 'border', 'border-gray-200',
                     'flex', 'items-center', 'justify-between',
                     'hover:bg-gray-100', 'transition', 'duration-150', 'ease-in-out'
                 );
@@ -171,19 +328,25 @@
                 const dragHandle = document.createElement('span');
                 dragHandle.classList.add(
                     'drag-handle', 'cursor-grab', 'text-gray-400', 'hover:text-gray-600',
-                    'mr-3', 'text-xl', 'p-1', 'rounded', 'hover:bg-gray-200', 'transition'
+                    'mr-2', 'text-xl', 'p-1', 'rounded', 'hover:bg-gray-200', 'transition'
                 );
                 // Using vertical ellipsis character as a drag icon
                 dragHandle.innerHTML = '&#x22EE;'; // Unicode for Vertical Ellipsis
 
                 // Create the text content for the list item
-                const itemText = document.createElement('span');
-                itemText.textContent = `Item ${i + 1}`;
-                itemText.classList.add('flex-grow', 'text-gray-800'); // Make text take up remaining space
+                const itemContent = document.createElement('span');
+                itemContent.classList.add('flex-grow', 'text-gray-800', 'text-sm');
+                itemContent.innerHTML = `
+                    Item ${i + 1}
+                    <span class="block text-xs text-gray-500">
+                        Original: <span class="original-order">${i}</span>,
+                        Current: <span class="current-order">${i}</span>
+                    </span>
+                `;
 
                 // Append handle and text to the list item
                 listItem.appendChild(dragHandle);
-                listItem.appendChild(itemText);
+                listItem.appendChild(itemContent);
                 sortableList.appendChild(listItem);
             }
 
@@ -194,7 +357,17 @@
                 chosenClass: 'sortable-chosen', // Class name for the chosen item
                 dragClass: 'sortable-drag', // Class name for the dragging item
                 handle: '.drag-handle', // ONLY drag by the element with this class
+                scroll: true, // Enable auto-scrolling
+                scrollSensitivity: 30, // px, how near to an edge you have to drag to activate scrolling
+                scrollSpeed: 10, // px, speed at which the window scrolls when dragging to an edge
+                onEnd: function (evt) {
+                    // Update current orders after a drag-and-drop operation
+                    updateCurrentOrders();
+                },
             });
+
+            // Update current orders after initial generation
+            updateCurrentOrders();
 
             // Hide previous results
             resultsContainer.classList.add('hidden');
@@ -202,18 +375,121 @@
         }
 
         /**
+         * Imports a list of items from a JSON string.
+         * Supports an array of strings (e.g., '["Apple", "Banana"]')
+         * or an array of objects with a 'text' property (e.g., '[{"text": "Apple"}, {"text": "Banana"}]').
+         * @param {string} jsonString - The JSON string to parse.
+         */
+        function importList(jsonString) {
+            let itemsToImport = [];
+            try {
+                const parsedData = JSON.parse(jsonString);
+
+                if (Array.isArray(parsedData)) {
+                    itemsToImport = parsedData.map((item, index) => {
+                        if (typeof item === 'string') {
+                            return item; // If it's a simple string
+                        } else if (typeof item === 'object' && item !== null && typeof item.text === 'string') {
+                            return item.text; // If it's an object with a 'text' property
+                        }
+                        return `Invalid Item ${index + 1}`; // Fallback for invalid entries
+                    });
+                } else {
+                    showMessageBox('Invalid JSON format. Please provide an array of strings or objects with a "text" property.');
+                    return;
+                }
+            } catch (e) {
+                showMessageBox('Invalid JSON string. Please check your input.');
+                console.error("Import error:", e);
+                return;
+            }
+
+            if (itemsToImport.length === 0) {
+                showMessageBox('No valid items found in the imported data.');
+                return;
+            }
+
+            // Clear existing list items
+            sortableList.innerHTML = '';
+
+            // Destroy previous Sortable instance if it exists
+            if (sortableInstance) {
+                sortableInstance.destroy();
+            }
+
+            // Create new list items from imported data
+            itemsToImport.forEach((itemText, i) => {
+                const listItem = document.createElement('li');
+                listItem.classList.add(
+                    'py-1', 'px-2', 'bg-white', 'rounded-md', 'shadow-sm', 'border', 'border-gray-200',
+                    'flex', 'items-center', 'justify-between',
+                    'hover:bg-gray-100', 'transition', 'duration-150', 'ease-in-out'
+                );
+                // For imported items, their "original" index is their position in the imported list
+                listItem.dataset.originalIndex = i;
+
+                const dragHandle = document.createElement('span');
+                dragHandle.classList.add(
+                    'drag-handle', 'cursor-grab', 'text-gray-400', 'hover:text-gray-600',
+                    'mr-2', 'text-xl', 'p-1', 'rounded', 'hover:bg-gray-200', 'transition'
+                );
+                dragHandle.innerHTML = '&#x22EE;';
+
+                const itemContent = document.createElement('span');
+                itemContent.classList.add('flex-grow', 'text-gray-800', 'text-sm');
+                itemContent.innerHTML = `
+                    ${itemText}
+                    <span class="block text-xs text-gray-500">
+                        Original: <span class="original-order">${i}</span>,
+                        Current: <span class="current-order">${i}</span>
+                    </span>
+                `;
+
+                listItem.appendChild(dragHandle);
+                listItem.appendChild(itemContent);
+                sortableList.appendChild(listItem);
+            });
+
+            // Re-initialize Sortable.js on the new list
+            sortableInstance = Sortable.create(sortableList, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                handle: '.drag-handle',
+                scroll: true, // Enable auto-scrolling
+                scrollSensitivity: 30,
+                scrollSpeed: 10,
+                onEnd: function (evt) {
+                    updateCurrentOrders();
+                },
+            });
+
+            // Update current orders after initial import
+            updateCurrentOrders();
+
+            // Hide previous results
+            resultsContainer.classList.add('hidden');
+            exportedResults.textContent = '';
+            showMessageBox(`Successfully imported ${itemsToImport.length} items.`);
+        }
+
+
+        /**
          * Exports the old and new indices of the list items.
          */
         function exportIndices() {
             const items = Array.from(sortableList.children);
             if (items.length === 0) {
-                showMessageBox('Please generate a list first.');
+                showMessageBox('Please generate or import a list first.');
                 return;
             }
 
             const indices = items.map((item, newIndex) => {
                 const oldIndex = parseInt(item.dataset.originalIndex, 10);
+                const itemText = item.querySelector('span.flex-grow').firstChild.textContent.trim(); // Get the main text content
                 return {
+                    text: itemText,
                     oldIndex: oldIndex,
                     newIndex: newIndex
                 };
@@ -223,13 +499,67 @@
             resultsContainer.classList.remove('hidden');
         }
 
-        // Event Listeners
-        generateListBtn.addEventListener('click', generateList);
-        exportIndicesBtn.addEventListener('click', exportIndices);
+        /**
+         * Moves an item based on its text content to a specified target index.
+         */
+        function moveItemByIndex() {
+            const itemTextToMove = itemToMoveInput.value.trim();
+            const targetIndex = parseInt(targetIndexInput.value, 10);
+
+            if (!itemTextToMove) {
+                showMessageBox('Please enter the text of the item to move.');
+                return;
+            }
+            if (isNaN(targetIndex) || targetIndex < 0) {
+                showMessageBox('Please enter a valid target index (0-based).');
+                return;
+            }
+
+            const items = Array.from(sortableList.children);
+            let itemToMoveElement = null;
+            let originalPosition = -1;
+
+            // Find the item by its main text content
+            for (let i = 0; i < items.length; i++) {
+                const currentItemText = items[i].querySelector('span.flex-grow').firstChild.textContent.trim();
+                if (currentItemText === itemTextToMove) {
+                    itemToMoveElement = items[i];
+                    originalPosition = i;
+                    break;
+                }
+            }
+
+            if (!itemToMoveElement) {
+                showMessageBox(`Item with text "${itemTextToMove}" not found.`);
+                return;
+            }
+
+            // Validate target index against current list size
+            if (targetIndex >= items.length) {
+                showMessageBox(`Target index ${targetIndex} is out of bounds. Max index is ${items.length - 1}.`);
+                return;
+            }
+
+            // Perform the move using Sortable.js's built-in array manipulation
+            // This ensures Sortable.js internal state is updated correctly
+            if (sortableInstance) {
+                sortableInstance.remove(itemToMoveElement); // Remove from current position
+                sortableInstance.add(itemToMoveElement, targetIndex); // Add at target position
+                updateCurrentOrders(); // Update all current orders after the move
+                showMessageBox(`Moved "${itemTextToMove}" from index ${originalPosition} to ${targetIndex}.`);
+            } else {
+                showMessageBox('List is not initialized. Generate a list first.');
+            }
+
+            // Clear inputs after successful move
+            itemToMoveInput.value = '';
+            targetIndexInput.value = '';
+        }
+
 
         // Initial list generation on page load
         window.onload = () => {
-            generateList();
+            generateList(10); // Generate 10 items by default on load
         };
     </script>
 </body>
