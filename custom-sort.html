@@ -75,15 +75,16 @@
             <div class="mt-6 w-full p-4 bg-gray-50 rounded-lg shadow-inner border border-gray-200">
                 <h3 class="text-xl font-semibold text-gray-800 mb-4 text-center">Move Item by Index</h3>
                 <input
-                    type="text"
-                    id="itemToMoveInput"
-                    placeholder="Item text (e.g., 'Item 5')"
+                    type="number"
+                    id="originalIndexToMoveInput"
+                    placeholder="Original Index (e.g., 4)"
                     class="w-full p-3 mb-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-800 shadow-sm"
+                    min="0"
                 >
                 <input
                     type="number"
                     id="targetIndexInput"
-                    placeholder="Target index (0-based)"
+                    placeholder="Target Index (0-based)"
                     class="w-full p-3 mb-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-800 shadow-sm"
                     min="0"
                 >
@@ -195,9 +196,9 @@
         const importFromDialogBtn = document.getElementById('importFromDialogBtn');
         const cancelImportDialogBtn = document.getElementById('cancelImportDialogBtn');
 
-        const itemToMoveInput = document.getElementById('itemToMoveInput'); // New
-        const targetIndexInput = document.getElementById('targetIndexInput'); // New
-        const moveItemBtn = document.getElementById('moveItemBtn'); // New
+        const originalIndexToMoveInput = document.getElementById('originalIndexToMoveInput'); // Changed ID
+        const targetIndexInput = document.getElementById('targetIndexInput');
+        const moveItemBtn = document.getElementById('moveItemBtn');
 
         const sortableList = document.getElementById('sortableList');
         const exportIndicesBtn = document.getElementById('exportIndicesBtn');
@@ -266,6 +267,13 @@
             generateList(numItems); // Call generateList with the dialog's input
             hideGenerateDialog();
         });
+        // Enter key submission for generate dialog input
+        dialogNumItemsInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                generateFromDialogBtn.click();
+            }
+        });
 
         // Event listeners for the import list dialog
         openImportDialogBtn.addEventListener('click', showImportDialog);
@@ -275,9 +283,29 @@
             importList(inputText); // Call importList with the dialog's input
             hideImportDialog();
         });
+        // Enter key submission for import dialog textarea
+        importTextArea.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' && !event.shiftKey) { // Allow Shift+Enter for new line
+                event.preventDefault();
+                importFromDialogBtn.click();
+            }
+        });
 
         // Event listener for the "Move Item" button
         moveItemBtn.addEventListener('click', moveItemByIndex);
+        // Enter key submission for move item inputs
+        originalIndexToMoveInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                moveItemBtn.click();
+            }
+        });
+        targetIndexInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                moveItemBtn.click();
+            }
+        });
 
 
         /**
@@ -330,14 +358,15 @@
                     'drag-handle', 'cursor-grab', 'text-gray-400', 'hover:text-gray-600',
                     'mr-2', 'text-xl', 'p-1', 'rounded', 'hover:bg-gray-200', 'transition'
                 );
-                // Using vertical ellipsis character as a drag icon
                 dragHandle.innerHTML = '&#x22EE;'; // Unicode for Vertical Ellipsis
+                dragHandle.setAttribute('aria-label', 'Drag to reorder item'); // Accessibility
+                dragHandle.setAttribute('title', 'Drag to reorder item'); // Accessibility
 
                 // Create the text content for the list item
                 const itemContent = document.createElement('span');
                 itemContent.classList.add('flex-grow', 'text-gray-800', 'text-sm');
                 itemContent.innerHTML = `
-                    Item ${i + 1}
+                    <span class="item-main-text">Item ${i + 1}</span>
                     <span class="block text-xs text-gray-500">
                         Original: <span class="original-order">${i}</span>,
                         Current: <span class="current-order">${i}</span>
@@ -434,11 +463,13 @@
                     'mr-2', 'text-xl', 'p-1', 'rounded', 'hover:bg-gray-200', 'transition'
                 );
                 dragHandle.innerHTML = '&#x22EE;';
+                dragHandle.setAttribute('aria-label', 'Drag to reorder item'); // Accessibility
+                dragHandle.setAttribute('title', 'Drag to reorder item'); // Accessibility
 
                 const itemContent = document.createElement('span');
                 itemContent.classList.add('flex-grow', 'text-gray-800', 'text-sm');
                 itemContent.innerHTML = `
-                    ${itemText}
+                    <span class="item-main-text">${itemText}</span>
                     <span class="block text-xs text-gray-500">
                         Original: <span class="original-order">${i}</span>,
                         Current: <span class="current-order">${i}</span>
@@ -487,7 +518,8 @@
 
             const indices = items.map((item, newIndex) => {
                 const oldIndex = parseInt(item.dataset.originalIndex, 10);
-                const itemText = item.querySelector('span.flex-grow').firstChild.textContent.trim(); // Get the main text content
+                // Correctly get the main text content from the span with class 'item-main-text'
+                const itemText = item.querySelector('.item-main-text').textContent.trim();
                 return {
                     text: itemText,
                     oldIndex: oldIndex,
@@ -500,14 +532,14 @@
         }
 
         /**
-         * Moves an item based on its text content to a specified target index.
+         * Moves an item based on its original index to a specified target index.
          */
         function moveItemByIndex() {
-            const itemTextToMove = itemToMoveInput.value.trim();
+            const originalIndexToMove = parseInt(originalIndexToMoveInput.value, 10);
             const targetIndex = parseInt(targetIndexInput.value, 10);
 
-            if (!itemTextToMove) {
-                showMessageBox('Please enter the text of the item to move.');
+            if (isNaN(originalIndexToMove) || originalIndexToMove < 0) {
+                showMessageBox('Please enter a valid original index (0-based) for the item to move.');
                 return;
             }
             if (isNaN(targetIndex) || targetIndex < 0) {
@@ -517,20 +549,19 @@
 
             const items = Array.from(sortableList.children);
             let itemToMoveElement = null;
-            let originalPosition = -1;
+            let currentPosition = -1; // Track current position of the item found
 
-            // Find the item by its main text content
+            // Find the item by its original index
             for (let i = 0; i < items.length; i++) {
-                const currentItemText = items[i].querySelector('span.flex-grow').firstChild.textContent.trim();
-                if (currentItemText === itemTextToMove) {
+                if (parseInt(items[i].dataset.originalIndex, 10) === originalIndexToMove) {
                     itemToMoveElement = items[i];
-                    originalPosition = i;
+                    currentPosition = i; // Store its current position
                     break;
                 }
             }
 
             if (!itemToMoveElement) {
-                showMessageBox(`Item with text "${itemTextToMove}" not found.`);
+                showMessageBox(`Item with original index "${originalIndexToMove}" not found.`);
                 return;
             }
 
@@ -540,19 +571,27 @@
                 return;
             }
 
+            // If the item is already at the target index, do nothing
+            if (currentPosition === targetIndex) {
+                showMessageBox(`Item with original index ${originalIndexToMove} is already at target index ${targetIndex}.`);
+                return;
+            }
+
             // Perform the move using Sortable.js's built-in array manipulation
             // This ensures Sortable.js internal state is updated correctly
             if (sortableInstance) {
-                sortableInstance.remove(itemToMoveElement); // Remove from current position
-                sortableInstance.add(itemToMoveElement, targetIndex); // Add at target position
+                // Sortable.js's `splice` method is more direct for programmatic moves
+                // It takes (item, newIndex, [oldIndex])
+                sortableInstance.splice(currentPosition, 1, itemToMoveElement); // Remove from current, insert at target
+                sortableList.insertBefore(itemToMoveElement, sortableList.children[targetIndex]); // Move in DOM
                 updateCurrentOrders(); // Update all current orders after the move
-                showMessageBox(`Moved "${itemTextToMove}" from index ${originalPosition} to ${targetIndex}.`);
+                showMessageBox(`Moved item (Original Index: ${originalIndexToMove}) from current index ${currentPosition} to ${targetIndex}.`);
             } else {
                 showMessageBox('List is not initialized. Generate a list first.');
             }
 
             // Clear inputs after successful move
-            itemToMoveInput.value = '';
+            originalIndexToMoveInput.value = '';
             targetIndexInput.value = '';
         }
 
