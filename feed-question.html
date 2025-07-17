@@ -128,6 +128,21 @@
         });
     };
 
+    // Utility for sanitizing HTML to prevent XSS
+    const escapeHtml = (text) => {
+        if (typeof text !== 'string') {
+            return text; // Return as is if not a string (e.g., undefined, null, numbers)
+        }
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    };
+
     // Global state
     let questions = [];
     let shuffledQuestionsForTest = []; // Store shuffled questions for the current test session
@@ -138,18 +153,18 @@
      *
      * @param {string} message - The message content to display.
      * @param {'alert' | 'confirm' | 'toast'} [type='alert'] - The type of message UI.
-     *        - 'alert': simple OK modal
-     *        - 'confirm': OK and Cancel modal (returns boolean)
-     *        - 'toast': non-blocking message that disappears after 3 seconds
-     * @param {'info' | 'error' | 'warning'} [level='info'] - Toast level style (only for 'toast' type).
-     *        - 'info': blue background (default)
-     *        - 'success': green background
-     *        - 'error': red background
-     *        - 'warning': amber/orange background
+     * - 'alert': simple OK modal
+     * - 'confirm': OK and Cancel modal (returns boolean)
+     * - 'toast': non-blocking message that disappears after 3 seconds
+     * @param {'info' | 'error' | 'warning' | 'success'} [level='info'] - Toast level style (only for 'toast' type).
+     * - 'info': blue background (default)
+     * - 'success': green background
+     * - 'error': red background
+     * - 'warning': amber/orange background
      *
      * @returns {Promise<boolean>} - Resolves to:
-     *        - `true` for 'alert' or toast after display
-     *        - `true` or `false` for 'confirm' depending on user's choice
+     * - `true` for 'alert' or toast after display
+     * - `true` or `false` for 'confirm' depending on user's choice
      */
     function showMessage(message, type = 'alert', level = 'info') {
         return new Promise((resolve) => {
@@ -177,7 +192,7 @@
             modalOverlay.className = 'modal-overlay';
             modalOverlay.innerHTML = `
             <div class="modal-content">
-                <p class="text-lg font-semibold mb-4 text-gray-800">${message}</p>
+                <p class="text-lg font-semibold mb-4 text-gray-800">${escapeHtml(message)}</p>
                 <div class="modal-buttons">
                     <button id="modal-ok-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-150 ease-in-out">OK</button>
                     ${type === 'confirm' ? `<button id="modal-cancel-btn" class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-150 ease-in-out">Cancel</button>` : ''}
@@ -284,14 +299,14 @@
                         const newQuestions = importedData.filter(q => !existingIds.has(q.id));
                         questions = [...questions, ...newQuestions];
                         saveQuestions();
-                        await showMessage('Questions imported successfully!');
+                        await showMessage('Questions imported successfully!', "toast", "success");
                         renderApp();
                     } else {
-                        await showMessage('Invalid JSON file format. Please ensure it contains an array of question objects.');
+                        await showMessage('Invalid JSON file format. Please ensure it contains an array of question objects.', "toast", "error");
                     }
                 } catch (error) {
                     console.error('Error parsing JSON:', error);
-                    await showMessage('Error importing questions. Please ensure it is a valid JSON file.');
+                    await showMessage('Error importing questions. Please ensure it is a valid JSON file.', "toast", "error");
                 }
             };
             reader.readAsText(file);
@@ -688,20 +703,20 @@
                 questionDiv.className = 'bg-gray-50 p-4 rounded-md shadow-sm border border-gray-200';
                 let contentHtml = `
                         <p class="text-sm font-semibold text-gray-700 mb-1">Question ${index + 1} (Type: ${q.type.replace(/-/g, ' ').replace(/\b\w/g, char => char.toUpperCase())})</p>
-                        <p class="text-md font-medium text-gray-900 mb-2">${q.questionText}</p>
-                        ${q.imageText ? `<p class="text-sm text-gray-500 italic mb-2">Image/Text: ${q.imageText}</p>` : ''}
+                        <p class="text-md font-medium text-gray-900 mb-2">${escapeHtml(q.questionText)}</p>
+                        ${q.imageText ? `<p class="text-sm text-gray-500 italic mb-2">Image/Text: ${escapeHtml(q.imageText)}</p>` : ''}
                     `;
 
                 if (q.type === 'multiple-choice') {
                     contentHtml += `<ul class="list-disc list-inside text-sm text-gray-700">`;
                     q.options.forEach(opt => {
-                        contentHtml += `<li class="${opt.id === q.correctAnswer ? 'font-bold text-green-700' : ''}">${opt.text} ${opt.id === q.correctAnswer ? '(Correct)' : ''}</li>`;
+                        contentHtml += `<li class="${opt.id === q.correctAnswer ? 'font-bold text-green-700' : ''}">${escapeHtml(opt.text)} ${opt.id === q.correctAnswer ? '(Correct)' : ''}</li>`;
                     });
                     contentHtml += `</ul>`;
                 } else if (q.type === 'multi-select') {
                     contentHtml += `<ul class="list-disc list-inside text-sm text-gray-700">`;
                     q.options.forEach(opt => {
-                        contentHtml += `<li class="${q.correctAnswers.includes(opt.id) ? 'font-bold text-green-700' : ''}">${opt.text} ${q.correctAnswers.includes(opt.id) ? '(Correct)' : ''}</li>`;
+                        contentHtml += `<li class="${q.correctAnswers.includes(opt.id) ? 'font-bold text-green-700' : ''}">${escapeHtml(opt.text)} ${q.correctAnswers.includes(opt.id) ? '(Correct)' : ''}</li>`;
                     });
                     contentHtml += `</ul>`;
                 } else if (q.type === 'match-the-following') {
@@ -709,9 +724,9 @@
                     q.matches.forEach((match, i) => {
                         contentHtml += `
                                 <div class="flex justify-between">
-                                    <span class="font-medium">${match.left}</span>
+                                    <span class="font-medium">${escapeHtml(match.left)}</span>
                                     <span>-</span>
-                                    <span>${match.right}</span>
+                                    <span>${escapeHtml(match.right)}</span>
                                 </div>
                             `;
                     });
@@ -792,8 +807,8 @@
             if (!currentQuestion) return '';
 
             let questionHtml = `
-                    <p class="text-lg font-semibold mb-4">${currentQuestion.questionText}</p>
-                    ${currentQuestion.imageText ? `<p class="text-sm text-gray-500 italic mb-4">Image/Text: ${currentQuestion.imageText}</p>` : ''}
+                    <p class="text-lg font-semibold mb-4">${escapeHtml(currentQuestion.questionText)}</p>
+                    ${currentQuestion.imageText ? `<p class="text-sm text-gray-500 italic mb-4">Image/Text: ${escapeHtml(currentQuestion.imageText)}</p>` : ''}
                 `;
 
             if (currentQuestion.type === 'multiple-choice') {
@@ -802,8 +817,8 @@
                     const checked = userAnswersForTest[currentQuestion.id] === option.id ? 'checked' : '';
                     questionHtml += `
                             <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 transition duration-150 ease-in-out">
-                                <input type="radio" name="question-${currentQuestion.id}" value="${option.id}" ${checked} class="form-radio h-5 w-5 text-indigo-600 border-gray-300 focus:ring-indigo-500" />
-                                <span class="ml-3 text-gray-800">${option.text}</span>
+                                <input type="radio" name="question-${currentQuestion.id}" value="${escapeHtml(option.id)}" ${checked} class="form-radio h-5 w-5 text-indigo-600 border-gray-300 focus:ring-indigo-500" />
+                                <span class="ml-3 text-gray-800">${escapeHtml(option.text)}</span>
                             </label>
                         `;
                 });
@@ -814,8 +829,8 @@
                     const checked = (userAnswersForTest[currentQuestion.id] || []).includes(option.id) ? 'checked' : '';
                     questionHtml += `
                             <label class="flex items-center p-3 border border-gray-300 rounded-md cursor-pointer hover:bg-gray-50 transition duration-150 ease-in-out">
-                                <input type="checkbox" name="question-${currentQuestion.id}" value="${option.id}" ${checked} class="form-checkbox h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
-                                <span class="ml-3 text-gray-800">${option.text}</span>
+                                <input type="checkbox" name="question-${currentQuestion.id}" value="${escapeHtml(option.id)}" ${checked} class="form-checkbox h-5 w-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" />
+                                <span class="ml-3 text-gray-800">${escapeHtml(option.text)}</span>
                             </label>
                         `;
                 });
@@ -830,16 +845,16 @@
                             <div class="col-span-1 space-y-3">
                                 <h4 class="font-medium text-gray-700">Left Column</h4>
                                 ${currentQuestion.matches.map(match => `
-                                    <div class="p-3 border border-gray-300 rounded-md bg-gray-50">${match.left}</div>
+                                    <div class="p-3 border border-gray-300 rounded-md bg-gray-50">${escapeHtml(match.left)}</div>
                                 `).join('')}
                             </div>
                             <div class="col-span-1 space-y-3">
                                 <h4 class="font-medium text-gray-700">Your Matches</h4>
                                 ${currentQuestion.matches.map(match => `
-                                    <select data-left-item="${match.left}" class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                                    <select data-left-item="${escapeHtml(match.left)}" class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
                                         <option value="">-- Select --</option>
                                         ${shuffledRightOptions.map(option => `
-                                            <option value="${option}" ${((userAnswersForTest[currentQuestion.id] || {})[match.left] === option) ? 'selected' : ''}>${option}</option>
+                                            <option value="${escapeHtml(option)}" ${((userAnswersForTest[currentQuestion.id] || {})[match.left] === option) ? 'selected' : ''}>${escapeHtml(option)}</option>
                                         `).join('')}
                                     </select>
                                 `).join('')}
@@ -882,20 +897,20 @@
 
                     resultsHtml += `
                             <div class="p-4 rounded-lg shadow-sm border-2 ${resultClass}">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-2">Question ${index + 1}: ${q.questionText}</h3>
-                                ${q.imageText ? `<p class="text-sm text-gray-500 italic mb-2">Image/Text: ${q.imageText}</p>` : ''}
+                                <h3 class="text-lg font-semibold text-gray-900 mb-2">Question ${index + 1}: ${escapeHtml(q.questionText)}</h3>
+                                ${q.imageText ? `<p class="text-sm text-gray-500 italic mb-2">Image/Text: ${escapeHtml(q.imageText)}</p>` : ''}
                         `;
 
                     if (q.type === 'multiple-choice') {
-                        const userSelectedText = getOptionTextById(q, userAnswer);
-                        const correctText = getOptionTextById(q, q.correctAnswer);
+                        const userSelectedText = escapeHtml(getOptionTextById(q, userAnswer));
+                        const correctText = escapeHtml(getOptionTextById(q, q.correctAnswer));
                         resultsHtml += `
                                 <p class="text-sm text-gray-700">Your Answer: <span class="${isCorrect ? 'correct-answer-text' : 'incorrect-answer-text'}">${userSelectedText || 'No answer'}</span></p>
                                 <p class="text-sm text-gray-700">Correct Answer: <span class="correct-answer-text">${correctText}</span></p>
                             `;
                     } else if (q.type === 'multi-select') {
-                        const userSelectedTexts = (userAnswer || []).map(id => getOptionTextById(q, id)).join(', ');
-                        const correctTexts = (q.correctAnswers || []).map(id => getOptionTextById(q, id)).join(', ');
+                        const userSelectedTexts = (userAnswer || []).map(id => escapeHtml(getOptionTextById(q, id))).join(', ');
+                        const correctTexts = (q.correctAnswers || []).map(id => escapeHtml(getOptionTextById(q, id))).join(', ');
                         resultsHtml += `
                                 <p class="text-sm text-gray-700">Your Answers: <span class="${isCorrect ? 'correct-answer-text' : 'incorrect-answer-text'}">${userSelectedTexts || 'No answer'}</span></p>
                                 <p class="text-sm text-gray-700">Correct Answers: <span class="correct-answer-text">${correctTexts}</span></p>
@@ -906,10 +921,10 @@
                             const userMatch = (userAnswer || {})[match.left] || 'No answer';
                             const matchCorrect = userMatch === match.right;
                             resultsHtml += `
-                                    <div class="font-medium">${match.left}</div>
+                                    <div class="font-medium">${escapeHtml(match.left)}</div>
                                     <div>
-                                        Your: <span class="${matchCorrect ? 'correct-answer-text' : 'incorrect-answer-text'}">${userMatch}</span><br>
-                                        Correct: <span class="correct-answer-text">${match.right}</span>
+                                        Your: <span class="${matchCorrect ? 'correct-answer-text' : 'incorrect-answer-text'}">${escapeHtml(userMatch)}</span><br>
+                                        Correct: <span class="correct-answer-text">${escapeHtml(match.right)}</span>
                                     </div>
                                 `;
                         });
